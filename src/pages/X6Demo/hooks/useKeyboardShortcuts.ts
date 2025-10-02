@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect } from 'react';
 import type { Graph } from '@antv/x6';
 import { getCellsWithChildren } from '../utils/graphConfig';
 
@@ -106,7 +106,9 @@ export const useKeyboardShortcuts = (
                 }
               },
               entrypoint: existingConfig.entrypoint || '',
+              entrypointIsArray: existingConfig.entrypointIsArray, // 保留格式标记
               command: existingConfig.command || 'tail -f /etc/hosts',
+              commandIsArray: existingConfig.commandIsArray, // 保留格式标记
               restart: existingConfig.restart || 'unless-stopped'
             };
 

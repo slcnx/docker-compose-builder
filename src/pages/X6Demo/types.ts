@@ -51,6 +51,8 @@ export interface ContainerConfig {
   networkInterfaces: NetworkInterface[]
   switchNetworks: Record<string, { subnet: string; gateway: string }>
   entrypoint: string
+  entrypointIsArray?: boolean // 标记原始格式是否为数组
   command: string
+  commandIsArray?: boolean // 标记原始格式是否为数组
   restart: string
 }

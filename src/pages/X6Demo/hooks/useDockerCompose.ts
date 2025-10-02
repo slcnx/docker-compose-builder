@@ -110,7 +110,9 @@ export const useDockerCompose = (
         networkInterfaces: networkInterfaces,
         switchNetworks: savedConfig.switchNetworks || {}, // 交换机网络配置保留 savedConfig
         entrypoint: entrypoint,
+        entrypointIsArray: savedConfig.entrypointIsArray, // 原始格式标记
         command: command,
+        commandIsArray: savedConfig.commandIsArray, // 原始格式标记
         restart: savedConfig.restart || 'unless-stopped' // 重启策略保留 savedConfig
       }
 
@@ -262,9 +264,11 @@ export const useDockerCompose = (
               ? (serviceConfig.entrypoint.length > 0 ? serviceConfig.entrypoint.join(' ') : '[]')
               : serviceConfig.entrypoint)
             : '',
+          entrypointIsArray: Array.isArray(serviceConfig.entrypoint), // 记录原始格式
           command: serviceConfig.command
             ? (Array.isArray(serviceConfig.command) ? serviceConfig.command.join(' ') : serviceConfig.command)
             : 'tail -f /etc/hosts',
+          commandIsArray: Array.isArray(serviceConfig.command), // 记录原始格式
           restart: serviceConfig.restart || 'unless-stopped'
         }
 

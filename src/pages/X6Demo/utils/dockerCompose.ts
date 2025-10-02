@@ -97,17 +97,36 @@ export const containerConfigToService = (config: ContainerConfig) => {
   }
 
   // 处理 entrypoint
-  if (config.entrypoint && config.entrypoint !== '[]' && config.entrypoint.trim()) {
-    service.entrypoint = config.entrypoint.includes(' ')
-      ? config.entrypoint.split(' ')
-      : config.entrypoint
+  if (config.entrypoint) {
+    if (config.entrypoint === '[]') {
+      // 空数组的字符串表示，转换为真正的空数组
+      service.entrypoint = []
+    } else if (config.entrypoint.trim()) {
+      // 根据原始格式决定输出格式
+      if (config.entrypointIsArray) {
+        // 原始是数组，分割为数组
+        service.entrypoint = config.entrypoint.includes(' ')
+          ? config.entrypoint.split(' ')
+          : [config.entrypoint]
+      } else {
+        // 原始是字符串，保持字符串
+        service.entrypoint = config.entrypoint
+      }
+    }
   }
 
   // 处理 command
   if (config.command && config.command !== 'tail -f /etc/hosts' && config.command.trim()) {
-    service.command = config.command.includes(' ')
-      ? config.command.split(' ')
-      : config.command
+    // 根据原始格式决定输出格式
+    if (config.commandIsArray) {
+      // 原始是数组，分割为数组
+      service.command = config.command.includes(' ')
+        ? config.command.split(' ')
+        : [config.command]
+    } else {
+      // 原始是字符串，保持字符串
+      service.command = config.command
+    }
   }
 
   // 添加端口映射
