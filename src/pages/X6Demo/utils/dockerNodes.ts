@@ -793,13 +793,13 @@ export const registerDockerNodes = () => {
     true,
   )
 
-  // 环境变量节点
+  // 环境变量列表节点
   Graph.registerNode(
     'docker-env',
     {
       inherit: 'rect',
-      width: 180,
-      height: 30,
+      width: 200,
+      height: 80,
       attrs: {
         body: {
           stroke: '#17a2b8',
@@ -809,12 +809,16 @@ export const registerDockerNodes = () => {
           ry: 5,
         },
         text: {
-          fontSize: 11,
+          fontSize: 10,
           fill: '#0c5460',
+          textAnchor: 'start',
+          textVerticalAnchor: 'top',
+          refX: 5,
+          refY: 5,
           textWrap: {
             width: -10,
             height: -10,
-            ellipsis: true,
+            ellipsis: false,
           },
         },
       },
@@ -1347,17 +1351,20 @@ export class DockerComponentFactory {
       childNodes.push(volumeNode)
     })
 
-    // 创建环境变量节点 - 底部水平排列（在卷节点下方）
-    config.environment?.forEach((env, index) => {
+    // 创建环境变量列表节点 - 底部（在卷节点下方）
+    if (config.environment && config.environment.length > 0) {
+      // 将所有环境变量合并为一个列表，用换行符分隔
+      const envList = config.environment.join('\n')
       const envNode = this.graph.addNode({
         shape: 'docker-env',
-        x: containerPosition.x + 20 + (index * 190),
+        x: containerPosition.x + 20,
         y: containerPosition.y + 270,
-        label: env,
+        label: envList,
         zIndex: 10,
+        data: { envList: config.environment }, // 保存原始环境变量数组
       })
       childNodes.push(envNode)
-    })
+    }
 
     // 创建端口节点 - 右侧上方垂直排列，增加间距
     config.ports?.forEach((port, index) => {

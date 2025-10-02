@@ -89,7 +89,21 @@ export const useDockerCompose = (
 
       // 读取环境变量节点（只使用节点数据）
       const envNodes = children.filter((child: any) => child.shape === 'docker-env')
-      const environment = envNodes.map((node: any) => node.attr('text/text'))
+      let environment: string[] = []
+
+      if (envNodes.length > 0) {
+        const envNode = envNodes[0] // 只有一个环境变量列表节点
+        const envData = envNode.getData()
+
+        // 优先使用保存的数组数据
+        if (envData?.envList && Array.isArray(envData.envList)) {
+          environment = envData.envList
+        } else {
+          // 否则从文本中解析（按换行符分割）
+          const envText = envNode.attr('text/text') || ''
+          environment = envText.split('\n').filter((line: string) => line.trim())
+        }
+      }
 
       // 读取网络接口节点（只使用节点数据）
       const networkNodes = children.filter((child: any) => child.shape === 'docker-network')
