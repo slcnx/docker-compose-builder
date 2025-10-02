@@ -896,6 +896,109 @@ export const registerDockerNodes = () => {
     true,
   )
 
+  // 构建配置节点
+  Graph.registerNode(
+    'docker-build',
+    {
+      inherit: 'rect',
+      width: 200,
+      height: 60,
+      attrs: {
+        body: {
+          stroke: '#6f42c1',
+          strokeWidth: 1,
+          fill: '#e7d9f5',
+          rx: 5,
+          ry: 5,
+        },
+        text: {
+          fontSize: 10,
+          fill: '#4a1d96',
+          textAnchor: 'start',
+          textVerticalAnchor: 'top',
+          refX: 5,
+          refY: 5,
+          textWrap: {
+            width: -10,
+            height: -10,
+            ellipsis: false,
+          },
+        },
+      },
+      ports: {
+        groups: {
+          top: {
+            position: 'top',
+            attrs: {
+              circle: {
+                r: 3,
+                magnet: true,
+                stroke: '#6f42c1',
+                strokeWidth: 2,
+                fill: '#fff',
+                style: {
+                  visibility: 'hidden',
+                },
+              },
+            },
+          },
+          right: {
+            position: 'right',
+            attrs: {
+              circle: {
+                r: 3,
+                magnet: true,
+                stroke: '#6f42c1',
+                strokeWidth: 2,
+                fill: '#fff',
+                style: {
+                  visibility: 'hidden',
+                },
+              },
+            },
+          },
+          bottom: {
+            position: 'bottom',
+            attrs: {
+              circle: {
+                r: 3,
+                magnet: true,
+                stroke: '#6f42c1',
+                strokeWidth: 2,
+                fill: '#fff',
+                style: {
+                  visibility: 'hidden',
+                },
+              },
+            },
+          },
+          left: {
+            position: 'left',
+            attrs: {
+              circle: {
+                r: 3,
+                magnet: true,
+                stroke: '#6f42c1',
+                strokeWidth: 2,
+                fill: '#fff',
+                style: {
+                  visibility: 'hidden',
+                },
+              },
+            },
+          },
+        },
+        items: [
+          { group: 'top' },
+          { group: 'right' },
+          { group: 'bottom' },
+          { group: 'left' },
+        ],
+      },
+    },
+    true,
+  )
+
   // 交换机节点
   Graph.registerNode(
     'network-switch',
@@ -1247,7 +1350,12 @@ export class DockerComponentFactory {
   // 创建完整的 Docker 容器架构
   createDockerArchitecture(config: {
     containerName: string
-    image: string
+    image?: string
+    build?: {
+      context?: string
+      dockerfile?: string
+      args?: Record<string, string>
+    } | string // build 可以是对象或字符串（简化格式）
     user?: string
     entrypoint?: string
     command?: string
@@ -1329,15 +1437,56 @@ export class DockerComponentFactory {
       childNodes.push(commandNode)
     }
 
-    // 创建镜像节点 - 中间位置
-    const imageNode = this.graph.addNode({
-      shape: 'docker-image',
-      x: containerPosition.x + 20,
-      y: containerPosition.y + 160,
-      label: config.image,
-      zIndex: 10,
-    })
-    childNodes.push(imageNode)
+    // 创建构建配置节点 - 左边位置（如果有 build）
+    if (config.build) {
+      let buildLabel = ''
+      let buildData: any = {}
+
+      if (typeof config.build === 'string') {
+        // 简化格式：build: ./dir
+        buildLabel = `context: ${config.build}`
+        buildData = { context: config.build }
+      } else {
+        // 对象格式
+        const buildLines: string[] = []
+        if (config.build.context) {
+          buildLines.push(`context: ${config.build.context}`)
+        }
+        if (config.build.dockerfile) {
+          buildLines.push(`dockerfile: ${config.build.dockerfile}`)
+        }
+        if (config.build.args) {
+          buildLines.push('args:')
+          Object.entries(config.build.args).forEach(([key, value]) => {
+            buildLines.push(`  ${key}: ${value}`)
+          })
+        }
+        buildLabel = buildLines.join('\n')
+        buildData = config.build
+      }
+
+      const buildNode = this.graph.addNode({
+        shape: 'docker-build',
+        x: containerPosition.x + 20,
+        y: containerPosition.y + 160,
+        label: buildLabel,
+        zIndex: 10,
+        data: { build: buildData },
+      })
+      childNodes.push(buildNode)
+    }
+
+    // 创建镜像节点 - 右边位置（如果有 image）
+    if (config.image) {
+      const imageNode = this.graph.addNode({
+        shape: 'docker-image',
+        x: containerPosition.x + 240,
+        y: containerPosition.y + 160,
+        label: config.image,
+        zIndex: 10,
+      })
+      childNodes.push(imageNode)
+    }
 
     // 创建卷节点 - 底部水平排列
     config.volumes?.forEach((volume, index) => {

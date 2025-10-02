@@ -17,6 +17,11 @@ export interface NetworkModalData {
 
 export interface DockerServiceConfig {
   image?: string
+  build?: {
+    context?: string
+    dockerfile?: string
+    args?: Record<string, string>
+  } | string
   user?: string
   entrypoint?: string | string[]
   command?: string | string[]
@@ -44,7 +49,12 @@ export interface NetworkInterface {
 
 export interface ContainerConfig {
   containerName: string
-  image: string
+  image?: string
+  build?: {
+    context?: string
+    dockerfile?: string
+    args?: Record<string, string>
+  } | string
   user?: string
   ports: string[]
   volumes: string[]

@@ -105,6 +105,20 @@ export const useDockerCompose = (
         }
       }
 
+      // 读取构建配置节点（只使用节点数据）
+      const buildNodes = children.filter((child: any) => child.shape === 'docker-build')
+      let build: any = undefined
+
+      if (buildNodes.length > 0) {
+        const buildNode = buildNodes[0]
+        const buildData = buildNode.getData()
+
+        // 优先使用保存的构建数据
+        if (buildData?.build) {
+          build = buildData.build
+        }
+      }
+
       // 读取网络接口节点（只使用节点数据）
       const networkNodes = children.filter((child: any) => child.shape === 'docker-network')
       const networkInterfaces: NetworkInterface[] = []
@@ -118,9 +132,8 @@ export const useDockerCompose = (
       })
 
       // 构建完整配置（只保留必要的 savedConfig 数据）
-      const config = {
+      const config: any = {
         containerName: serviceName,
-        image: image,
         user: user,
         ports: ports,
         volumes: volumes,
@@ -133,6 +146,17 @@ export const useDockerCompose = (
         commandIsArray: savedConfig.commandIsArray, // 原始格式标记
         restart: savedConfig.restart || 'unless-stopped', // 重启策略保留 savedConfig
         depends_on: savedConfig.depends_on || [] // 依赖关系保留 savedConfig
+      }
+
+      // 添加 image 或 build 配置（至少有一个）
+      if (build) {
+        config.build = build
+      }
+      if (image && image !== 'nginx:latest') {
+        config.image = image
+      } else if (!build) {
+        // 如果既没有 build 也没有有效的 image，使用默认 image
+        config.image = image
       }
 
       services[serviceName] = containerConfigToService(config)
@@ -251,7 +275,8 @@ export const useDockerCompose = (
         // 创建Docker容器节点
         const { containerNode } = dockerFactory.createDockerArchitecture({
           containerName: serviceName,
-          image: serviceConfig.image || 'docker.io/library/nginx:latest',
+          image: serviceConfig.image,
+          build: serviceConfig.build,
           user: serviceConfig.user,
           entrypoint: serviceConfig.entrypoint !== undefined
             ? (Array.isArray(serviceConfig.entrypoint)
@@ -275,8 +300,8 @@ export const useDockerCompose = (
         if (composeData.networks) {
           Object.entries(composeData.networks).forEach(([networkName, networkConfig]: [string, any]) => {
             switchNetworks[networkName] = {
-              subnet: networkConfig.ipam?.config?.[0]?.subnet || '172.20.0.0/16',
-              gateway: networkConfig.ipam?.config?.[0]?.gateway || '172.20.0.1'
+              subnet: networkConfig?.ipam?.config?.[0]?.subnet || '172.20.0.0/16',
+              gateway: networkConfig?.ipam?.config?.[0]?.gateway || '172.20.0.1'
             }
           })
         }
@@ -291,9 +316,8 @@ export const useDockerCompose = (
           }
         }
 
-        const completeConfig = {
+        const completeConfig: any = {
           containerName: serviceName,
-          image: serviceConfig.image || 'docker.io/library/nginx:latest',
           user: serviceConfig.user,
           ports: ports,
           volumes: volumes,
@@ -312,6 +336,17 @@ export const useDockerCompose = (
           commandIsArray: Array.isArray(serviceConfig.command), // 记录原始格式
           restart: serviceConfig.restart || 'unless-stopped',
           depends_on: dependsOn
+        }
+
+        // 添加 image 或 build 配置
+        if (serviceConfig.build) {
+          completeConfig.build = serviceConfig.build
+        }
+        if (serviceConfig.image) {
+          completeConfig.image = serviceConfig.image
+        } else if (!serviceConfig.build) {
+          // 如果既没有 build 也没有 image，使用默认值
+          completeConfig.image = 'docker.io/library/nginx:latest'
         }
 
         containerNode.setData({ config: completeConfig })

@@ -87,8 +87,14 @@ export const parseYaml = (yamlString: string): DockerComposeData => {
  * 从容器配置生成服务配置
  */
 export const containerConfigToService = (config: ContainerConfig) => {
-  const service: any = {
-    image: config.image,
+  const service: any = {}
+
+  // 添加 image 或 build 配置
+  if (config.image) {
+    service.image = config.image
+  }
+  if (config.build) {
+    service.build = config.build
   }
 
   // 添加用户配置
