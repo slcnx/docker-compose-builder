@@ -1494,8 +1494,24 @@ export class DockerComponentFactory {
 
       // 创建连接
       this.graph.addEdge({
-        source: switchNode,
-        target: routerNode,
+        source: {
+          cell: switchNode.id,
+          anchor: {
+            name: 'center',
+          },
+          connectionPoint: {
+            name: 'boundary',
+          },
+        },
+        target: {
+          cell: routerNode.id,
+          anchor: {
+            name: 'center',
+          },
+          connectionPoint: {
+            name: 'boundary',
+          },
+        },
         router: {
           name: 'manhattan',
           args: {
@@ -1590,8 +1606,24 @@ export class DockerComponentFactory {
 
     // 创建连接线
     const edge = this.graph.addEdge({
-      source: networkNode.id,
-      target: switchNode.id,
+      source: {
+        cell: networkNode.id,
+        anchor: {
+          name: 'center',
+        },
+        connectionPoint: {
+          name: 'boundary',
+        },
+      },
+      target: {
+        cell: switchNode.id,
+        anchor: {
+          name: 'center',
+        },
+        connectionPoint: {
+          name: 'boundary',
+        },
+      },
       router: {
         name: 'manhattan',
         args: {
@@ -1652,8 +1684,24 @@ export class DockerComponentFactory {
 
     // 创建连接线
     const edge = this.graph.addEdge({
-      source: switchNode.id,
-      target: router.id,
+      source: {
+        cell: switchNode.id,
+        anchor: {
+          name: 'center',
+        },
+        connectionPoint: {
+          name: 'boundary',
+        },
+      },
+      target: {
+        cell: router.id,
+        anchor: {
+          name: 'center',
+        },
+        connectionPoint: {
+          name: 'boundary',
+        },
+      },
       router: {
         name: 'manhattan',
         args: {

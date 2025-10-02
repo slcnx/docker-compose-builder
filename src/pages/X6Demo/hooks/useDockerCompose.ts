@@ -113,7 +113,8 @@ export const useDockerCompose = (
         entrypointIsArray: savedConfig.entrypointIsArray, // 原始格式标记
         command: command,
         commandIsArray: savedConfig.commandIsArray, // 原始格式标记
-        restart: savedConfig.restart || 'unless-stopped' // 重启策略保留 savedConfig
+        restart: savedConfig.restart || 'unless-stopped', // 重启策略保留 savedConfig
+        depends_on: savedConfig.depends_on || [] // 依赖关系保留 savedConfig
       }
 
       services[serviceName] = containerConfigToService(config)
@@ -250,6 +251,16 @@ export const useDockerCompose = (
           })
         }
 
+        // 处理 depends_on 配置
+        let dependsOn: string[] = []
+        if (serviceConfig.depends_on) {
+          if (Array.isArray(serviceConfig.depends_on)) {
+            dependsOn = serviceConfig.depends_on
+          } else if (typeof serviceConfig.depends_on === 'object') {
+            dependsOn = Object.keys(serviceConfig.depends_on)
+          }
+        }
+
         const completeConfig = {
           containerName: serviceName,
           image: serviceConfig.image || 'docker.io/library/nginx:latest',
@@ -269,7 +280,8 @@ export const useDockerCompose = (
             ? (Array.isArray(serviceConfig.command) ? serviceConfig.command.join(' ') : serviceConfig.command)
             : 'tail -f /etc/hosts',
           commandIsArray: Array.isArray(serviceConfig.command), // 记录原始格式
-          restart: serviceConfig.restart || 'unless-stopped'
+          restart: serviceConfig.restart || 'unless-stopped',
+          depends_on: dependsOn
         }
 
         containerNode.setData({ config: completeConfig })
@@ -318,8 +330,24 @@ export const useDockerCompose = (
 
               // 创建交换机到路由器的连接
               graph.addEdge({
-                source: switchNode,
-                target: routerNode,
+                source: {
+                  cell: switchNode.id,
+                  anchor: {
+                    name: 'center',
+                  },
+                  connectionPoint: {
+                    name: 'boundary',
+                  },
+                },
+                target: {
+                  cell: routerNode.id,
+                  anchor: {
+                    name: 'center',
+                  },
+                  connectionPoint: {
+                    name: 'boundary',
+                  },
+                },
                 router: {
                   name: 'manhattan',
                   args: {
@@ -371,8 +399,24 @@ export const useDockerCompose = (
 
                 // 创建连接 - 使用节点 ID
                 graph.addEdge({
-                  source: networkNode.id,
-                  target: switchNode.id,
+                  source: {
+                    cell: networkNode.id,
+                    anchor: {
+                      name: 'center',
+                    },
+                    connectionPoint: {
+                      name: 'boundary',
+                    },
+                  },
+                  target: {
+                    cell: switchNode.id,
+                    anchor: {
+                      name: 'center',
+                    },
+                    connectionPoint: {
+                      name: 'boundary',
+                    },
+                  },
                   router: {
                     name: 'manhattan',
                     args: {
@@ -403,6 +447,71 @@ export const useDockerCompose = (
         })
 
         console.log('所有网络连接创建完成')
+
+        // 创建依赖关系连接
+        Object.entries(composeData.services).forEach(([serviceName, serviceConfig]: [string, any]) => {
+          const currentNode = serviceNodes[serviceName]
+          if (!currentNode) return
+
+          const containerData = currentNode.getData()
+          const dependsOn = containerData?.config?.depends_on || []
+
+          dependsOn.forEach((dependencyName: string) => {
+            const dependencyNode = serviceNodes[dependencyName]
+            if (dependencyNode) {
+              // 创建从被依赖容器到依赖容器的连线（A -> B，B依赖A）
+              graph.addEdge({
+                source: {
+                  cell: dependencyNode.id,
+                  anchor: {
+                    name: 'center',
+                  },
+                  connectionPoint: {
+                    name: 'boundary',
+                  },
+                },
+                target: {
+                  cell: currentNode.id,
+                  anchor: {
+                    name: 'center',
+                  },
+                  connectionPoint: {
+                    name: 'boundary',
+                  },
+                },
+                router: {
+                  name: 'manhattan',
+                  args: {
+                    padding: 1,
+                    step: 10,
+                  },
+                },
+                attrs: {
+                  line: {
+                    stroke: '#ff6b6b',
+                    strokeWidth: 2,
+                    strokeDasharray: '5 5',
+                    targetMarker: {
+                      name: 'block',
+                      width: 8,
+                      height: 6,
+                    },
+                  },
+                },
+                zIndex: 1,
+                data: {
+                  type: 'dependency',
+                  originalStroke: '#ff6b6b',
+                  originalWidth: 2,
+                },
+              })
+
+              console.log(`创建依赖关系连接: ${dependencyName} -> ${serviceName}`)
+            }
+          })
+        })
+
+        console.log('所有依赖关系连接创建完成')
       }, 100)
 
       // 导入成功后自动保存

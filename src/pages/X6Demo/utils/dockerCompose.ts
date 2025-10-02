@@ -164,6 +164,11 @@ export const containerConfigToService = (config: ContainerConfig) => {
     service.restart = config.restart
   }
 
+  // 添加依赖关系
+  if (config.depends_on && config.depends_on.length > 0) {
+    service.depends_on = config.depends_on
+  }
+
   return service
 }
 

@@ -25,6 +25,7 @@ export interface DockerServiceConfig {
   networks?: string[] | Record<string, any>
   environment?: string[] | Record<string, string>
   restart?: string
+  depends_on?: string[] | Record<string, any>
 }
 
 export interface DockerComposeData {
@@ -55,4 +56,5 @@ export interface ContainerConfig {
   command: string
   commandIsArray?: boolean // 标记原始格式是否为数组
   restart: string
+  depends_on?: string[]
 }
