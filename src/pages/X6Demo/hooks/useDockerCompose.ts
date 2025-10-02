@@ -87,6 +87,10 @@ export const useDockerCompose = (
         }
       })
 
+      // 读取环境变量节点（只使用节点数据）
+      const envNodes = children.filter((child: any) => child.shape === 'docker-env')
+      const environment = envNodes.map((node: any) => node.attr('text/text'))
+
       // 读取网络接口节点（只使用节点数据）
       const networkNodes = children.filter((child: any) => child.shape === 'docker-network')
       const networkInterfaces: NetworkInterface[] = []
@@ -106,7 +110,7 @@ export const useDockerCompose = (
         user: user,
         ports: ports,
         volumes: volumes,
-        environment: savedConfig.environment || [], // 环境变量暂时保留 savedConfig
+        environment: environment.length > 0 ? environment : (savedConfig.environment || []), // 优先使用节点数据
         networkInterfaces: networkInterfaces,
         switchNetworks: savedConfig.switchNetworks || {}, // 交换机网络配置保留 savedConfig
         entrypoint: entrypoint,
@@ -219,6 +223,17 @@ export const useDockerCompose = (
         const x = startX + col * (containerWidth + horizontalSpacing)
         const y = startY + row * (containerHeight + verticalSpacing)
 
+        // 处理环境变量
+        let environment: string[] = []
+        if (serviceConfig.environment) {
+          if (Array.isArray(serviceConfig.environment)) {
+            environment = serviceConfig.environment
+          } else if (typeof serviceConfig.environment === 'object') {
+            // 如果是对象格式，转换为数组格式
+            environment = Object.entries(serviceConfig.environment).map(([key, value]) => `${key}=${value}`)
+          }
+        }
+
         // 创建Docker容器节点
         const { containerNode } = dockerFactory.createDockerArchitecture({
           containerName: serviceName,
@@ -234,6 +249,7 @@ export const useDockerCompose = (
             : undefined,
           ports: ports,
           volumes: volumes,
+          environment: environment,
           networkInterfaces: networkInterfaces,
           position: { x, y }
         })

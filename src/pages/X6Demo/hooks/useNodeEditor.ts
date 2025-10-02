@@ -15,25 +15,12 @@ export const useNodeEditor = (graph?: Graph) => {
   // 为节点使用官方的node-editor工具
   const addNodeEditor = (node: Node, event?: any) => {
     if (!graph) return;
-    console.log('add node-editor')
     // 使用X6官方的node-editor工具
     node.addTools([{
       name: 'node-editor',
       args: {
         event,
-        // attrs: {
-        //   fontSize: '12px',
-        //   fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-        //   color: '#333',
-        //   backgroundColor: '#fff',
-        // },
-        // getText() {
-        //   return node.attr('text/text') || '文本';
-        // },
-        // setText(text: string) {
-        //   const newText = text.trim() || '文本';
-        //   node.attr('text/text', newText);
-        // },
+       
       },
     }]);
   } 
@@ -46,50 +33,7 @@ export const useNodeEditor = (graph?: Graph) => {
     edge.addTools([{
       name: 'edge-editor',
       args: {
-        event,
-        labelAddable: true,
-        attrs: {
-          fontSize: '12px',
-          fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-          color: '#333',
-          backgroundColor: '#fff',
-        },
-        getText() {
-          const labels = edge.getLabels()
-          if (!labels || labels.length === 0) return ''
-          const firstLabel = labels[0]
-          // 兼容不同的标签结构
-          const text = firstLabel?.attrs?.label?.text || firstLabel?.attrs?.text?.text || ''
-          return typeof text === 'string' ? text : ''
-        },
-        setText(text: string) {
-          const newText = text.trim();
-          if (newText) {
-            edge.setLabels([{
-              attrs: {
-                text: {
-                  text: newText,
-                  fontSize: 12,
-                  fill: '#333',
-                  fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-                },
-                rect: {
-                  fill: '#fff',
-                  stroke: '#1890ff',
-                  strokeWidth: 1,
-                  rx: 4,
-                  ry: 4,
-                  refWidth: '100%',
-                  refHeight: '100%',
-                  refX: '-50%',
-                  refY: '-50%',
-                },
-              },
-            }]);
-          } else {
-            edge.setLabels([]);
-          }
-        },
+        event
       },
     }]);
   }, [graph]);

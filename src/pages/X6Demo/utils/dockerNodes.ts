@@ -793,6 +793,105 @@ export const registerDockerNodes = () => {
     true,
   )
 
+  // 环境变量节点
+  Graph.registerNode(
+    'docker-env',
+    {
+      inherit: 'rect',
+      width: 180,
+      height: 30,
+      attrs: {
+        body: {
+          stroke: '#17a2b8',
+          strokeWidth: 1,
+          fill: '#d1ecf1',
+          rx: 5,
+          ry: 5,
+        },
+        text: {
+          fontSize: 11,
+          fill: '#0c5460',
+          textWrap: {
+            width: -10,
+            height: -10,
+            ellipsis: true,
+          },
+        },
+      },
+      ports: {
+        groups: {
+          top: {
+            position: 'top',
+            attrs: {
+              circle: {
+                r: 3,
+                magnet: true,
+                stroke: '#17a2b8',
+                strokeWidth: 2,
+                fill: '#fff',
+                style: {
+                  visibility: 'hidden',
+                },
+              },
+            },
+          },
+          right: {
+            position: 'right',
+            attrs: {
+              circle: {
+                r: 3,
+                magnet: true,
+                stroke: '#17a2b8',
+                strokeWidth: 2,
+                fill: '#fff',
+                style: {
+                  visibility: 'hidden',
+                },
+              },
+            },
+          },
+          bottom: {
+            position: 'bottom',
+            attrs: {
+              circle: {
+                r: 3,
+                magnet: true,
+                stroke: '#17a2b8',
+                strokeWidth: 2,
+                fill: '#fff',
+                style: {
+                  visibility: 'hidden',
+                },
+              },
+            },
+          },
+          left: {
+            position: 'left',
+            attrs: {
+              circle: {
+                r: 3,
+                magnet: true,
+                stroke: '#17a2b8',
+                strokeWidth: 2,
+                fill: '#fff',
+                style: {
+                  visibility: 'hidden',
+                },
+              },
+            },
+          },
+        },
+        items: [
+          { group: 'top' },
+          { group: 'right' },
+          { group: 'bottom' },
+          { group: 'left' },
+        ],
+      },
+    },
+    true,
+  )
+
   // 交换机节点
   Graph.registerNode(
     'network-switch',
@@ -1150,6 +1249,7 @@ export class DockerComponentFactory {
     command?: string
     ports?: string[]
     volumes?: string[]
+    environment?: string[] // 添加环境变量
     networkInterfaces?: Array<{
       interfaceName: string
       switchName: string
@@ -1245,6 +1345,18 @@ export class DockerComponentFactory {
         zIndex: 10,
       })
       childNodes.push(volumeNode)
+    })
+
+    // 创建环境变量节点 - 底部水平排列（在卷节点下方）
+    config.environment?.forEach((env, index) => {
+      const envNode = this.graph.addNode({
+        shape: 'docker-env',
+        x: containerPosition.x + 20 + (index * 190),
+        y: containerPosition.y + 270,
+        label: env,
+        zIndex: 10,
+      })
+      childNodes.push(envNode)
     })
 
     // 创建端口节点 - 右侧上方垂直排列，增加间距

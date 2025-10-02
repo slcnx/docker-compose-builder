@@ -9,6 +9,7 @@ import { useDockerContextMenu } from './hooks/useDockerContextMenu'
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts'
 import { usePanningMode } from './hooks/usePanningMode'
 import { useNodeEditor } from './hooks/useNodeEditor'
+import { useGraphEvents } from './hooks/useGraphEvents'
 import { createGraphConfig, getCellsWithChildren } from './utils/graphConfig'
 
 const Example: React.FC = () => {
@@ -59,6 +60,14 @@ const Example: React.FC = () => {
     networkModalData,
     setNetworkModalData
   } = useDockerContextMenu(graphRef.current, dockerFactory)
+
+  // 使用图事件 Hook
+  useGraphEvents({
+    graph: graphRef.current,
+    handleContextMenu,
+    hideContextMenu,
+    handleDoubleClick,
+  })
 
   // 检查并恢复localStorage中的数据（使用 useStorage hook）
   const checkAndRestoreFromStorage = () => {
@@ -261,218 +270,7 @@ const Example: React.FC = () => {
     })
     // stencilRef.current.appendChild(stencil.container)
 
-    // 添加右键菜单事件监听
-    graph.on('node:contextmenu', ({ e, node }) => {
-      handleContextMenu(e, node)
-    })
-
-    // 点击空白处隐藏右键菜单
-    document.addEventListener('click', hideContextMenu)
-    graph.on('blank:click', hideContextMenu)
-
-    // 控制连接桩显示/隐藏
-    const showPorts = (ports: NodeListOf<SVGElement>, show: boolean) => {
-      for (let i = 0, len = ports.length; i < len; i = i + 1) {
-        ports[i].style.visibility = show ? 'visible' : 'hidden'
-      }
-    }
-
-    // 鼠标进入节点时显示连接点
-    graph.on('node:mouseenter', ({ node }) => {
-      // 获取相关的节点（容器或独立设备）
-      let targetNodes: any[] = []
-
-      if (node.shape === 'docker-container') {
-        // 如果是容器节点，显示容器的连接点
-        targetNodes = [node]
-      } else if (['docker-service', 'docker-script', 'docker-image', 'docker-volume', 'docker-port', 'docker-network'].includes(node.shape)) {
-        // 如果是容器内的子元素，查找父容器并显示其连接点
-        const parentContainer = node.getParent()
-        if (parentContainer && parentContainer.shape === 'docker-container') {
-          targetNodes = [parentContainer]
-        }
-        // 同时显示子元素自身的连接点（如果有的话）
-        targetNodes.push(node)
-      } else if (['network-switch', 'network-router'].includes(node.shape)) {
-        // 如果是网络设备，显示其连接点
-        targetNodes = [node]
-      } else {
-        // 其他类型节点，显示自身连接点
-        targetNodes = [node]
-      }
-
-      // 显示相关节点的连接点
-      targetNodes.forEach(targetNode => {
-        const nodeElement = graph.findViewByCell(targetNode)?.container
-        if (nodeElement) {
-          const ports = nodeElement.querySelectorAll('.x6-port-body') as NodeListOf<SVGElement>
-          showPorts(ports, true)
-        }
-      })
-    })
-
-    // 鼠标离开节点时隐藏连接点
-    graph.on('node:mouseleave', ({ node, e }) => {
-      // 延迟隐藏，避免在容器内移动时闪烁
-      setTimeout(() => {
-        // 检查鼠标是否还在相关的节点上
-        const currentHoveredElement = document.elementFromPoint(e.clientX || 0, e.clientY || 0)
-        const isStillOnRelevantNode = currentHoveredElement?.closest('.x6-node')
-
-        if (!isStillOnRelevantNode) {
-          const ports = containerRef.current!.querySelectorAll(
-            '.x6-port-body',
-          ) as NodeListOf<SVGElement>
-          showPorts(ports, false)
-        }
-      }, 100)
-    })
-
-    // 边的鼠标悬停效果和交互工具
-    graph.on('edge:mouseenter', ({ edge }) => {
-      // 添加边的交互工具
-      edge.addTools([
-        {
-          name: 'vertices',
-          args: {
-            attrs: { fill: '#007bff', stroke: '#fff', 'stroke-width': 2 },
-            snapRadius: 20,
-          },
-        },
-        {
-          name: 'segments',
-          args: {
-            threshold: 40,
-            attrs: {
-              width: 20,
-              height: 8,
-              x: -10,
-              y: -4,
-              rx: 4,
-              ry: 4,
-              fill: '#007bff',
-              stroke: '#fff',
-              'stroke-width': 2,
-            },
-          },
-        },
-        {
-          name: 'source-arrowhead',
-          args: {
-            attrs: {
-              fill: '#28a745',
-              stroke: '#fff',
-              'stroke-width': 2,
-              cursor: 'move',
-            },
-          },
-        },
-        {
-          name: 'target-arrowhead',
-          args: {
-            attrs: {
-              fill: '#dc3545',
-              stroke: '#fff',
-              'stroke-width': 2,
-              cursor: 'move',
-            },
-          },
-        },
-        {
-          name: 'button-remove',
-          args: {
-            distance: 20,
-            markup: [
-              {
-                tagName: 'circle',
-                selector: 'button',
-                attrs: {
-                  r: 8,
-                  stroke: '#dc3545',
-                  'stroke-width': 2,
-                  fill: '#fff',
-                  cursor: 'pointer',
-                },
-              },
-              {
-                tagName: 'text',
-                textContent: '×',
-                selector: 'icon',
-                attrs: {
-                  fill: '#dc3545',
-                  'font-size': 12,
-                  'text-anchor': 'middle',
-                  'pointer-events': 'none',
-                  y: '0.3em',
-                  'font-weight': 'bold',
-                },
-              },
-            ],
-          },
-        },
-      ])
-
-      // 如果边没有被选中，则显示悬停效果
-      if (!graph.isSelected(edge)) {
-        // 从数据中获取原始样式，如果没有则使用默认值
-        const data = edge.getData() || {}
-        const originalStroke = data.originalStroke || '#6c757d'
-        const originalWidth = data.originalWidth || 2
-
-        // 根据连线类型选择高亮颜色
-        let hoverColor = '#007bff'
-        if (data.type === 'dependency') {
-          hoverColor = '#e63946' // 依赖关系用更深的红色高亮
-        }
-
-        edge.attr({
-          line: {
-            strokeWidth: originalWidth + 2,
-            stroke: hoverColor
-          }
-        })
-
-        // 保存原始样式以便恢复（只在第一次保存）
-        if (!data.originalStroke) {
-          edge.setData({
-            ...data,
-            originalStroke,
-            originalWidth,
-            isHovering: true
-          })
-        } else {
-          edge.setData({
-            ...data,
-            isHovering: true
-          })
-        }
-      }
-    })
-
-    graph.on('edge:mouseleave', ({ edge }) => {
-      // 移除边的交互工具
-      edge.removeTools()
-
-      // 如果边没有被选中，则恢复原始样式
-      if (!graph.isSelected(edge) && edge.getData()?.isHovering) {
-        const data = edge.getData()
-        edge.attr({
-          line: {
-            strokeWidth: data.originalWidth || 2,
-            stroke: data.originalStroke || '#6c757d'
-          }
-        })
-
-        edge.setData({ ...data, isHovering: false })
-      }
-    })
-
-    // 双击编辑（使用 useNodeEditor hook）
-    graph.on('cell:dblclick', ({ cell, e }) => {
-      handleDoubleClick(cell, e)
-    })
-
-    // 监听选择变化，便于调试多选功能
+    // 监听选择变化，添加高级选择工具
     graph.on('selection:changed', ({ added, removed }) => {
       const selectedCells = graph.getSelectedCells()
 
