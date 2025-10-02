@@ -119,6 +119,20 @@ export const useDockerCompose = (
         }
       }
 
+      // 读取 ulimits 配置节点（只使用节点数据）
+      const ulimitsNodes = children.filter((child: any) => child.shape === 'docker-ulimits')
+      let ulimits: any = undefined
+
+      if (ulimitsNodes.length > 0) {
+        const ulimitsNode = ulimitsNodes[0]
+        const ulimitsData = ulimitsNode.getData()
+
+        // 优先使用保存的 ulimits 数据
+        if (ulimitsData?.ulimits) {
+          ulimits = ulimitsData.ulimits
+        }
+      }
+
       // 读取网络接口节点（只使用节点数据）
       const networkNodes = children.filter((child: any) => child.shape === 'docker-network')
       const networkInterfaces: NetworkInterface[] = []
@@ -157,6 +171,11 @@ export const useDockerCompose = (
       } else if (!build) {
         // 如果既没有 build 也没有有效的 image，使用默认 image
         config.image = image
+      }
+
+      // 添加 ulimits 配置
+      if (ulimits) {
+        config.ulimits = ulimits
       }
 
       services[serviceName] = containerConfigToService(config)
@@ -289,6 +308,7 @@ export const useDockerCompose = (
           ports: ports,
           volumes: volumes,
           environment: environment,
+          ulimits: serviceConfig.ulimits,
           networkInterfaces: networkInterfaces,
           position: { x, y }
         })
@@ -347,6 +367,11 @@ export const useDockerCompose = (
         } else if (!serviceConfig.build) {
           // 如果既没有 build 也没有 image，使用默认值
           completeConfig.image = 'docker.io/library/nginx:latest'
+        }
+
+        // 添加 ulimits 配置
+        if (serviceConfig.ulimits) {
+          completeConfig.ulimits = serviceConfig.ulimits
         }
 
         containerNode.setData({ config: completeConfig })

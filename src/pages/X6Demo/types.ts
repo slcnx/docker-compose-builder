@@ -29,6 +29,10 @@ export interface DockerServiceConfig {
   volumes?: string[]
   networks?: string[] | Record<string, any>
   environment?: string[] | Record<string, string>
+  ulimits?: Record<string, {
+    soft?: number
+    hard?: number
+  } | number>
   restart?: string
   depends_on?: string[] | Record<string, any>
 }
@@ -59,6 +63,10 @@ export interface ContainerConfig {
   ports: string[]
   volumes: string[]
   environment: string[] | Record<string, string>
+  ulimits?: Record<string, {
+    soft?: number
+    hard?: number
+  } | number>
   networkInterfaces: NetworkInterface[]
   switchNetworks: Record<string, { subnet: string; gateway: string }>
   entrypoint: string

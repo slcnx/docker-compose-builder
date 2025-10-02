@@ -999,6 +999,109 @@ export const registerDockerNodes = () => {
     true,
   )
 
+  // ulimits 限制配置节点
+  Graph.registerNode(
+    'docker-ulimits',
+    {
+      inherit: 'rect',
+      width: 200,
+      height: 80,
+      attrs: {
+        body: {
+          stroke: '#e83e8c',
+          strokeWidth: 1,
+          fill: '#f8d7e9',
+          rx: 5,
+          ry: 5,
+        },
+        text: {
+          fontSize: 10,
+          fill: '#721c47',
+          textAnchor: 'start',
+          textVerticalAnchor: 'top',
+          refX: 5,
+          refY: 5,
+          textWrap: {
+            width: -10,
+            height: -10,
+            ellipsis: false,
+          },
+        },
+      },
+      ports: {
+        groups: {
+          top: {
+            position: 'top',
+            attrs: {
+              circle: {
+                r: 3,
+                magnet: true,
+                stroke: '#e83e8c',
+                strokeWidth: 2,
+                fill: '#fff',
+                style: {
+                  visibility: 'hidden',
+                },
+              },
+            },
+          },
+          right: {
+            position: 'right',
+            attrs: {
+              circle: {
+                r: 3,
+                magnet: true,
+                stroke: '#e83e8c',
+                strokeWidth: 2,
+                fill: '#fff',
+                style: {
+                  visibility: 'hidden',
+                },
+              },
+            },
+          },
+          bottom: {
+            position: 'bottom',
+            attrs: {
+              circle: {
+                r: 3,
+                magnet: true,
+                stroke: '#e83e8c',
+                strokeWidth: 2,
+                fill: '#fff',
+                style: {
+                  visibility: 'hidden',
+                },
+              },
+            },
+          },
+          left: {
+            position: 'left',
+            attrs: {
+              circle: {
+                r: 3,
+                magnet: true,
+                stroke: '#e83e8c',
+                strokeWidth: 2,
+                fill: '#fff',
+                style: {
+                  visibility: 'hidden',
+                },
+              },
+            },
+          },
+        },
+        items: [
+          { group: 'top' },
+          { group: 'right' },
+          { group: 'bottom' },
+          { group: 'left' },
+        ],
+      },
+    },
+    true,
+  )
+
   // 交换机节点
   Graph.registerNode(
     'network-switch',
@@ -1362,6 +1465,10 @@ export class DockerComponentFactory {
     ports?: string[]
     volumes?: string[]
     environment?: string[] // 添加环境变量
+    ulimits?: Record<string, {
+      soft?: number
+      hard?: number
+    } | number> // ulimits 限制配置
     networkInterfaces?: Array<{
       interfaceName: string
       switchName: string
@@ -1513,6 +1620,35 @@ export class DockerComponentFactory {
         data: { envList: config.environment }, // 保存原始环境变量数组
       })
       childNodes.push(envNode)
+    }
+
+    // 创建 ulimits 限制节点 - 环境变量右侧
+    if (config.ulimits) {
+      const ulimitsLines: string[] = []
+      Object.entries(config.ulimits).forEach(([limitName, limitConfig]: [string, any]) => {
+        ulimitsLines.push(`${limitName}:`)
+        if (typeof limitConfig === 'object' && limitConfig !== null) {
+          if (limitConfig.soft !== undefined) {
+            ulimitsLines.push(`  soft: ${limitConfig.soft}`)
+          }
+          if (limitConfig.hard !== undefined) {
+            ulimitsLines.push(`  hard: ${limitConfig.hard}`)
+          }
+        } else {
+          ulimitsLines.push(`  ${limitConfig}`)
+        }
+      })
+
+      const ulimitsLabel = ulimitsLines.join('\n')
+      const ulimitsNode = this.graph.addNode({
+        shape: 'docker-ulimits',
+        x: containerPosition.x + 240,
+        y: containerPosition.y + 270,
+        label: ulimitsLabel,
+        zIndex: 10,
+        data: { ulimits: config.ulimits }, // 保存原始 ulimits 数据
+      })
+      childNodes.push(ulimitsNode)
     }
 
     // 创建端口节点 - 右侧上方垂直排列，增加间距

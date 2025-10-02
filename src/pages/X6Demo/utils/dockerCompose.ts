@@ -150,6 +150,11 @@ export const containerConfigToService = (config: ContainerConfig) => {
     service.environment = config.environment
   }
 
+  // 添加 ulimits 配置
+  if (config.ulimits) {
+    service.ulimits = config.ulimits
+  }
+
   // 添加网络配置
   if (config.networkInterfaces && config.networkInterfaces.length > 0) {
     const networks: any = {}
