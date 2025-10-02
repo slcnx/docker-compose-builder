@@ -1,0 +1,101 @@
+/* X6 Demo 基础样式 */
+.app {
+  display: flex;
+  width: calc(100vw - 180px);
+}
+
+.app-content {
+  /* flex: 1; */
+
+  /* box-shadow: 0 0 10px 1px #e9e9e9; */
+
+  /* overflow: hidden; */
+
+  /* position: relative; */
+
+  /* min-width: 0; */
+  height: 100%;
+  width: 1600px;
+}
+
+/* 左侧边栏样式 */
+.stencil-container {
+  /* width: 180px; */
+  flex-shrink: 0;
+  border-right: 1px solid #dfe3e8;
+  height: 100%;
+  overflow: hidden;
+}
+
+/* X6 组件库样式 */
+.x6-widget-stencil {
+  background-color: #fff;
+  height: 100%;
+  overflow-y: auto;
+}
+
+.x6-widget-stencil-title {
+  background-color: #fff;
+}
+
+.x6-widget-stencil-group-title {
+  background-color: #fff !important;
+}
+
+/* X6 变换工具样式 */
+.x6-widget-transform {
+  margin: -1px 0 0 -1px;
+  padding: 0;
+  border: 1px solid #239edd;
+}
+
+.x6-widget-transform > div {
+  border: 1px solid #239edd;
+}
+
+.x6-widget-transform > div:hover {
+  background-color: #3dafe4;
+}
+
+.x6-widget-transform-active-handle {
+  background-color: #3dafe4;
+}
+
+.x6-widget-transform-resize {
+  border-radius: 0;
+}
+
+/* X6 选择框样式 */
+.x6-widget-selection-inner {
+  border: 1px solid #239edd;
+}
+
+.x6-widget-selection-box {
+  opacity: 0;
+}
+
+/* 风格多条不显示 */
+.x6-graph-scroller {
+  overflow: hidden;
+  height: 100%;
+}
+
+/* 网格高 */
+.x6-graph-grid {
+  height: 100%;
+}
+
+/* Minimap 小地图样式 */
+.minimap-container {
+  position: fixed;
+  top: 156px;
+  right: 20px;
+  width: 250px;
+  height: 150px;
+  border: 1px solid #d9d9d9;
+  border-radius: 4px;
+  background-color: #fff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 10%);
+  z-index: 100;
+  overflow: hidden;
+}

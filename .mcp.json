@@ -1,0 +1,30 @@
+{
+  "mcpServers": {
+    "drp-mcp": {
+      "type": "stdio",
+      "command": "uvx",
+      "args": [
+        "--from",
+        "git+https://gitee.com/slcnx/drission-page-mcp.git",
+        "websearch",
+        "server",
+        "--headless",
+        "--extract-mode",
+        "body"
+      ],
+      "env": {}
+    },
+    "chrome-devtools": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["chrome-devtools-mcp@latest"],
+      "env": {}
+    },
+    "codex-mcp": {
+      "type": "stdio",
+      "command": "codex",
+      "args": ["-m", "gpt-5-codex", "-c", "model_reasoning_effort=high", "mcp"],
+      "env": {}
+    }
+  }
+}

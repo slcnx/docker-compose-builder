@@ -1,0 +1,4 @@
+{
+  "enabledMcpjsonServers": ["drp-mcp"],
+  "enableAllProjectMcpServers": true
+}

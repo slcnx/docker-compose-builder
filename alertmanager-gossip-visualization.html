@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Alertmanager Gossip 集群端口通信可视化</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Microsoft YaHei', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 32px;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 40px;
+            font-size: 16px;
+        }
+
+        /* 集群可视化容器 */
+        .cluster-visualization {
+            position: relative;
+            background: #f8f9ff;
+            border-radius: 15px;
+            padding: 60px 40px;
+            min-height: 600px;
+        }
+
+        /* 节点容器 */
+        .node {
+            position: absolute;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .node.node-A {
+            left: 50%;
+            top: 80px;
+            transform: translateX(-50%);
+        }
+
+        .node.node-B {
+            left: 15%;
+            bottom: 120px;
+        }
+
+        .node.node-C {
+            right: 15%;
+            bottom: 120px;
+        }
+
+        /* 程序主体 */
+        .program-box {
+            background: white;
+            border: 3px solid #667eea;
+            border-radius: 12px;
+            padding: 20px 40px;
+            text-align: center;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+
+        .node-A .program-box { border-color: #667eea; }
+        .node-B .program-box { border-color: #f093fb; }
+        .node-C .program-box { border-color: #4facfe; }
+
+        .node-title {
+            font-size: 20px;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 8px;
+        }
+
+        .program-name {
+            font-size: 16px;
+            color: #666;
+            font-family: 'Courier New', monospace;
+        }
+
+        /* 端口Cell */
+        .port-cell {
+            background: linear-gradient(135deg, #48bb78, #38a169);
+            border-radius: 10px;
+            padding: 15px 25px;
+            color: white;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            min-width: 200px;
+            text-align: center;
+        }
+
+        .port-cell.cluster {
+            background: linear-gradient(135deg, #ed8936, #c05621);
+        }
+
+        .port-number {
+            font-size: 24px;
+            font-weight: bold;
+            font-family: 'Courier New', monospace;
+            margin-bottom: 8px;
+        }
+
+        .port-config {
+            font-size: 11px;
+            opacity: 0.95;
+            font-family: 'Courier New', monospace;
+            line-height: 1.4;
+            border-top: 1px solid rgba(255,255,255,0.3);
+            padding-top: 8px;
+            margin-top: 8px;
+        }
+
+
+        /* SVG连接线 */
+        .connections {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+
+        .connection-line {
+            fill: none;
+            stroke-width: 3;
+        }
+
+        .cluster-line {
+            stroke: #ed8936;
+            stroke-width: 4;
+            stroke-dasharray: 8,4;
+        }
+
+        /* 动画 */
+        @keyframes flow {
+            0% { stroke-dashoffset: 0; }
+            100% { stroke-dashoffset: 12; }
+        }
+
+        .cluster-line {
+            animation: flow 1.5s linear infinite;
+        }
+
+        /* 图例 */
+        .legend {
+            display: flex;
+            justify-content: center;
+            gap: 40px;
+            margin-top: 30px;
+            padding: 25px;
+            background: #fff3cd;
+            border-radius: 10px;
+            border: 2px solid #ffc107;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .legend-line {
+            width: 50px;
+            height: 4px;
+            border-radius: 2px;
+        }
+
+        .legend-line.cluster {
+            background: #ed8936;
+            background-image: repeating-linear-gradient(
+                90deg,
+                #ed8936,
+                #ed8936 8px,
+                transparent 8px,
+                transparent 12px
+            );
+        }
+
+        .legend-text {
+            font-size: 14px;
+            font-weight: bold;
+            color: #333;
+        }
+
+        /* 说明区域 */
+        .info-section {
+            margin-top: 30px;
+            padding: 25px;
+            background: #e8f4f8;
+            border-left: 5px solid #667eea;
+            border-radius: 10px;
+        }
+
+        .info-section h3 {
+            color: #667eea;
+            margin-bottom: 15px;
+            font-size: 20px;
+        }
+
+        .info-section ul {
+            list-style: none;
+            padding-left: 0;
+        }
+
+        .info-section li {
+            padding: 8px 0;
+            padding-left: 25px;
+            position: relative;
+            line-height: 1.6;
+        }
+
+        .info-section li::before {
+            content: '→';
+            position: absolute;
+            left: 0;
+            color: #667eea;
+            font-weight: bold;
+        }
+
+        /* Peer配置标注 */
+        .peer-label {
+            position: absolute;
+            background: white;
+            border: 2px solid #e53e3e;
+            border-radius: 6px;
+            padding: 8px 12px;
+            font-size: 11px;
+            font-family: 'Courier New', monospace;
+            color: #e53e3e;
+            font-weight: bold;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            white-space: nowrap;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Alertmanager Gossip 集群端口通信可视化</h1>
+        <p class="subtitle">配置选项直接写在端口上 | 端口通过箭头连接通信 | Node B/C通过peer连接Node A</p>
+
+        <!-- 主可视化区域 -->
+        <div class="cluster-visualization">
+            <!-- SVG连接线 -->
+            <svg class="connections">
+                <defs>
+                    <!-- 箭头定义 -->
+                    <marker id="arrow-orange" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto">
+                        <polygon points="0 0, 10 5, 0 10" fill="#ed8936" />
+                    </marker>
+                </defs>
+
+                <!-- Node A Cluster端口 <-> Node B Cluster端口 -->
+                <path d="M 48% 35% Q 30% 50%, 25% 72%"
+                      class="connection-line cluster-line"
+                      marker-end="url(#arrow-orange)" />
+                <path d="M 25% 75% Q 30% 52%, 48% 38%"
+                      class="connection-line cluster-line"
+                      marker-end="url(#arrow-orange)" />
+
+                <!-- Node A Cluster端口 <-> Node C Cluster端口 -->
+                <path d="M 52% 35% Q 70% 50%, 75% 72%"
+                      class="connection-line cluster-line"
+                      marker-end="url(#arrow-orange)" />
+                <path d="M 75% 75% Q 70% 52%, 52% 38%"
+                      class="connection-line cluster-line"
+                      marker-end="url(#arrow-orange)" />
+
+                <!-- Node B Cluster端口 <-> Node C Cluster端口 -->
+                <line x1="30%" y1="78%" x2="70%" y2="78%"
+                      class="connection-line cluster-line"
+                      marker-end="url(#arrow-orange)" />
+                <line x1="70%" y1="81%" x2="30%" y2="81%"
+                      class="connection-line cluster-line"
+                      marker-end="url(#arrow-orange)" />
+            </svg>
+
+            <!-- 节点A -->
+            <div class="node node-A">
+                <div class="port-cell">
+                    <div class="port-number">:9093</div>
+                    <div style="font-size: 12px; opacity: 0.9;">Web端口</div>
+                    <div class="port-config">
+                        --web.listen-address<br>
+                        0.0.0.0:9093
+                    </div>
+                </div>
+
+                <div class="program-box">
+                    <div class="node-title">Node A</div>
+                    <div class="program-name">alertmanager</div>
+                </div>
+
+                <div class="port-cell cluster">
+                    <div class="port-number">:9094</div>
+                    <div style="font-size: 12px; opacity: 0.9;">Cluster端口</div>
+                    <div class="port-config">
+                        --cluster.listen-address<br>
+                        0.0.0.0:9094
+                    </div>
+                </div>
+            </div>
+
+            <!-- 节点B -->
+            <div class="node node-B">
+                <div class="port-cell">
+                    <div class="port-number">:9093</div>
+                    <div style="font-size: 12px; opacity: 0.9;">Web端口</div>
+                    <div class="port-config">
+                        --web.listen-address<br>
+                        0.0.0.0:9093
+                    </div>
+                </div>
+
+                <div class="program-box">
+                    <div class="node-title">Node B</div>
+                    <div class="program-name">alertmanager</div>
+                </div>
+
+                <div class="port-cell cluster">
+                    <div class="port-number">:9094</div>
+                    <div style="font-size: 12px; opacity: 0.9;">Cluster端口</div>
+                    <div class="port-config">
+                        --cluster.listen-address<br>
+                        0.0.0.0:9094
+                    </div>
+                </div>
+            </div>
+
+            <!-- 节点C -->
+            <div class="node node-C">
+                <div class="port-cell">
+                    <div class="port-number">:9093</div>
+                    <div style="font-size: 12px; opacity: 0.9;">Web端口</div>
+                    <div class="port-config">
+                        --web.listen-address<br>
+                        0.0.0.0:9093
+                    </div>
+                </div>
+
+                <div class="program-box">
+                    <div class="node-title">Node C</div>
+                    <div class="program-name">alertmanager</div>
+                </div>
+
+                <div class="port-cell cluster">
+                    <div class="port-number">:9094</div>
+                    <div style="font-size: 12px; opacity: 0.9;">Cluster端口</div>
+                    <div class="port-config">
+                        --cluster.listen-address<br>
+                        0.0.0.0:9094
+                    </div>
+                </div>
+            </div>
+
+            <!-- Peer配置标注 -->
+            <div class="peer-label" style="left: 15%; bottom: 35%;">
+                --cluster.peer<br>nodeA:9094
+            </div>
+            <div class="peer-label" style="right: 15%; bottom: 35%;">
+                --cluster.peer<br>nodeA:9094
+            </div>
+        </div>
+
+        <!-- 图例 -->
+        <div class="legend">
+            <div class="legend-item">
+                <div style="width: 50px; height: 20px; background: linear-gradient(135deg, #48bb78, #38a169); border-radius: 4px;"></div>
+                <span class="legend-text">Web端口 :9093 (接收告警)</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-line cluster"></div>
+                <span class="legend-text">Cluster端口通信 (:9094 ↔ :9094 Gossip协议)</span>
+            </div>
+            <div class="legend-item">
+                <div style="width: 50px; height: 20px; border: 2px solid #e53e3e; border-radius: 4px;"></div>
+                <span class="legend-text">--cluster.peer 配置 (指定连接节点)</span>
+            </div>
+        </div>
+
+        <!-- 核心要点说明 -->
+        <div class="info-section">
+            <h3>🔑 集群建立的核心要素</h3>
+            <ul>
+                <li><strong>端口 :9093 (Web)</strong>：由 <code>--web.listen-address</code> 打开，用于接收外部告警（如Prometheus）</li>
+                <li><strong>端口 :9094 (Cluster)</strong>：由 <code>--cluster.listen-address</code> 打开，用于Gossip协议集群通信</li>
+                <li><strong>配置 --cluster.peer</strong>：Node B/C通过此配置指定连接Node A的9094端口（格式：nodeA:9094），建立集群拓扑</li>
+                <li><strong>通信方式</strong>：三个节点通过9094端口进行双向Gossip通信，同步告警状态、静默规则等集群数据</li>
+                <li><strong>高可用</strong>：任意节点接收的告警会通过Gossip协议同步到所有节点，实现集群级去重和一致性</li>
+            </ul>
+        </div>
+
+        <!-- Gossip协议说明 -->
+        <div class="info-section" style="background: #fff3cd; border-left-color: #ffc107;">
+            <h3>🔄 Gossip协议工作原理</h3>
+            <ul>
+                <li><strong>Push-based</strong>：节点主动向随机节点推送状态更新（实时性高，但可能重复）</li>
+                <li><strong>Pull-based</strong>：节点定期从随机节点拉取最新状态（避免重复，但实时性稍差）</li>
+                <li><strong>最终一致性</strong>：通过节点间持续的状态交换，最终所有节点达到一致状态</li>
+                <li><strong>去中心化</strong>：无需中心节点协调，每个节点地位平等，故障容忍度高</li>
+                <li><strong>端口 :9094</strong>：所有Gossip通信都通过此端口进行，是集群的"神经网络"</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        // 可选：添加交互效果
+        const portCells = document.querySelectorAll('.port-cell');
+        const lines = document.querySelectorAll('.connection-line');
+
+        portCells.forEach(cell => {
+            cell.addEventListener('mouseenter', function() {
+                this.style.transform = 'scale(1.05)';
+                this.style.boxShadow = '0 6px 20px rgba(0,0,0,0.25)';
+            });
+
+            cell.addEventListener('mouseleave', function() {
+                this.style.transform = '';
+                this.style.boxShadow = '';
+            });
+        });
+    </script>
+</body>
+</html>

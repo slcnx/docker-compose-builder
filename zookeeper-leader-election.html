@@ -1,0 +1,737 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Zookeeper Leader选举可视化</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Microsoft YaHei', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 32px;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 16px;
+        }
+
+        /* 步骤控制 */
+        .step-control {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+
+        .step-btn {
+            padding: 12px 25px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+            transition: all 0.3s;
+        }
+
+        .step-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        }
+
+        .step-btn.active {
+            background: linear-gradient(135deg, #48bb78, #38a169);
+        }
+
+        /* 可视化区域 */
+        .visualization {
+            position: relative;
+            background: #f8f9ff;
+            border-radius: 15px;
+            padding: 60px 40px;
+            min-height: 500px;
+            margin-bottom: 30px;
+        }
+
+        /* ZK节点 */
+        .zk-node {
+            position: absolute;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+            transition: all 0.5s;
+        }
+
+        .zk-node.node-1 {
+            left: 15%;
+            top: 50%;
+            transform: translateY(-50%);
+        }
+
+        .zk-node.node-2 {
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+        }
+
+        .zk-node.node-3 {
+            right: 15%;
+            top: 50%;
+            transform: translateY(-50%);
+        }
+
+        .node-card {
+            background: white;
+            border: 4px solid #667eea;
+            border-radius: 12px;
+            padding: 20px 30px;
+            text-align: center;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            min-width: 150px;
+            transition: all 0.3s;
+        }
+
+        .node-card.leader {
+            border-color: #f5c518;
+            background: linear-gradient(135deg, #fff9e6, #ffffff);
+            box-shadow: 0 0 30px rgba(245, 197, 24, 0.5);
+        }
+
+        .node-card.follower {
+            border-color: #48bb78;
+        }
+
+        .node-title {
+            font-size: 20px;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        .node-id {
+            font-size: 14px;
+            color: #666;
+            margin-bottom: 5px;
+            font-family: 'Courier New', monospace;
+        }
+
+        .node-id .label {
+            display: inline-block;
+            width: 50px;
+            text-align: right;
+            color: #999;
+        }
+
+        .node-id .value {
+            font-weight: bold;
+            color: #333;
+        }
+
+        .node-status {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: bold;
+            margin-top: 8px;
+        }
+
+        .status-looking {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .status-leader {
+            background: #f5c518;
+            color: #333;
+        }
+
+        .status-follower {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        /* 投票信息 */
+        .vote-box {
+            position: absolute;
+            background: #667eea;
+            color: white;
+            padding: 10px 15px;
+            border-radius: 8px;
+            font-size: 12px;
+            font-family: 'Courier New', monospace;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+            opacity: 0;
+            transition: all 0.5s;
+        }
+
+        .vote-box.show {
+            opacity: 1;
+        }
+
+        /* SVG连接线 */
+        .connections {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+
+        .vote-line {
+            stroke: #667eea;
+            stroke-width: 3;
+            fill: none;
+            stroke-dasharray: 8,4;
+            opacity: 0;
+            transition: opacity 0.5s;
+        }
+
+        .vote-line.show {
+            opacity: 0.6;
+            animation: flow 1.5s linear infinite;
+        }
+
+        @keyframes flow {
+            0% { stroke-dashoffset: 0; }
+            100% { stroke-dashoffset: 12; }
+        }
+
+        /* 步骤说明 */
+        .step-description {
+            background: #e8f4f8;
+            border-left: 5px solid #667eea;
+            border-radius: 10px;
+            padding: 25px;
+            margin-bottom: 30px;
+        }
+
+        .step-description h3 {
+            color: #667eea;
+            margin-bottom: 15px;
+            font-size: 20px;
+        }
+
+        .step-description p {
+            color: #333;
+            line-height: 1.8;
+            font-size: 15px;
+        }
+
+        .step-description .highlight {
+            background: #fff3cd;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-weight: bold;
+        }
+
+        /* 对比规则 */
+        .rules {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .rule-card {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            padding: 25px;
+            border-radius: 12px;
+            text-align: center;
+        }
+
+        .rule-card h4 {
+            font-size: 18px;
+            margin-bottom: 10px;
+        }
+
+        .rule-card p {
+            font-size: 14px;
+            opacity: 0.95;
+            line-height: 1.6;
+        }
+
+        .rule-card:nth-child(2) {
+            background: linear-gradient(135deg, #48bb78, #38a169);
+        }
+
+        .rule-card:nth-child(3) {
+            background: linear-gradient(135deg, #e53e3e, #c53030);
+        }
+
+        /* 对比表格 */
+        .comparison-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 30px;
+            background: white;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+
+        .comparison-table th {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            padding: 15px;
+            text-align: center;
+            font-size: 14px;
+        }
+
+        .comparison-table td {
+            padding: 12px;
+            text-align: center;
+            border-bottom: 1px solid #eee;
+            font-family: 'Courier New', monospace;
+        }
+
+        .comparison-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        .comparison-table .winner {
+            background: #fff9e6;
+            font-weight: bold;
+            color: #f5c518;
+        }
+
+        /* 信息框 */
+        .info-box {
+            background: #fff3cd;
+            border-left: 5px solid #ffc107;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 30px;
+        }
+
+        .info-box h3 {
+            color: #856404;
+            margin-bottom: 10px;
+            font-size: 18px;
+        }
+
+        .info-box ul {
+            list-style: none;
+            padding-left: 0;
+        }
+
+        .info-box li {
+            padding: 5px 0;
+            padding-left: 20px;
+            position: relative;
+            color: #856404;
+        }
+
+        .info-box li::before {
+            content: '✓';
+            position: absolute;
+            left: 0;
+            font-weight: bold;
+        }
+
+        /* 皇冠图标 */
+        .crown {
+            position: absolute;
+            top: -30px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 32px;
+            animation: bounce 1s infinite;
+        }
+
+        @keyframes bounce {
+            0%, 100% { transform: translateX(-50%) translateY(0); }
+            50% { transform: translateX(-50%) translateY(-10px); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Zookeeper Leader 选举机制可视化</h1>
+        <p class="subtitle">通过图形和动画理解 Leader 选举的完整过程</p>
+
+        <!-- 步骤控制 -->
+        <div class="step-control">
+            <button class="step-btn active" onclick="showStep(0)">1. 初始状态</button>
+            <button class="step-btn" onclick="showStep(1)">2. 发起投票</button>
+            <button class="step-btn" onclick="showStep(2)">3. 交换投票</button>
+            <button class="step-btn" onclick="showStep(3)">4. 对比投票</button>
+            <button class="step-btn" onclick="showStep(4)">5. 选出Leader</button>
+        </div>
+
+        <!-- 可视化区域 -->
+        <div class="visualization" id="viz">
+            <svg class="connections" id="connections">
+                <defs>
+                    <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto">
+                        <polygon points="0 0, 10 5, 0 10" fill="#667eea" />
+                    </marker>
+                </defs>
+                <!-- 投票线条将由JS动态添加 -->
+            </svg>
+
+            <!-- ZK节点1 -->
+            <div class="zk-node node-1" id="node1">
+                <div class="node-card">
+                    <div class="node-title">ZK-1</div>
+                    <div class="node-id"><span class="label">myid:</span> <span class="value">1</span></div>
+                    <div class="node-id"><span class="label">zxid:</span> <span class="value">0x100</span></div>
+                    <span class="node-status status-looking">LOOKING</span>
+                </div>
+            </div>
+
+            <!-- ZK节点2 -->
+            <div class="zk-node node-2" id="node2">
+                <div class="node-card">
+                    <div class="node-title">ZK-2</div>
+                    <div class="node-id"><span class="label">myid:</span> <span class="value">2</span></div>
+                    <div class="node-id"><span class="label">zxid:</span> <span class="value">0x200</span></div>
+                    <span class="node-status status-looking">LOOKING</span>
+                </div>
+            </div>
+
+            <!-- ZK节点3 -->
+            <div class="zk-node node-3" id="node3">
+                <div class="node-card">
+                    <div class="node-title">ZK-3</div>
+                    <div class="node-id"><span class="label">myid:</span> <span class="value">3</span></div>
+                    <div class="node-id"><span class="label">zxid:</span> <span class="value">0x150</span></div>
+                    <span class="node-status status-looking">LOOKING</span>
+                </div>
+            </div>
+
+            <!-- 投票信息框 -->
+            <div class="vote-box" id="vote1" style="left: 15%; top: 30%;">
+                投票: (1, 0x100)
+            </div>
+            <div class="vote-box" id="vote2" style="left: 50%; top: 20%; transform: translateX(-50%);">
+                投票: (2, 0x200)
+            </div>
+            <div class="vote-box" id="vote3" style="right: 15%; top: 30%;">
+                投票: (3, 0x150)
+            </div>
+        </div>
+
+        <!-- 步骤说明 -->
+        <div class="step-description" id="step-desc">
+            <h3>步骤 1：集群初始状态</h3>
+            <p>
+                三个 Zookeeper 节点启动完成，每个节点都有自己的 <span class="highlight">myid</span>（节点ID）和 <span class="highlight">zxid</span>（事务ID）。
+                所有节点都处于 <span class="highlight">LOOKING</span> 状态，准备开始选举。
+            </p>
+        </div>
+
+        <!-- 选举规则 -->
+        <div class="rules">
+            <div class="rule-card">
+                <h4>📊 规则 1：优先比较 zxid</h4>
+                <p>zxid 更大的节点优先成为 Leader<br>（数据越新越有资格）</p>
+            </div>
+            <div class="rule-card">
+                <h4>🔢 规则 2：zxid 相同看 myid</h4>
+                <p>如果 zxid 相同，则 myid 更大的成为 Leader<br>（配置的节点ID）</p>
+            </div>
+            <div class="rule-card">
+                <h4>✅ 规则 3：过半机制</h4>
+                <p>必须获得超过半数节点（n/2+1）的投票才能成为 Leader</p>
+            </div>
+        </div>
+
+        <!-- 对比表格 -->
+        <table class="comparison-table" id="comparison">
+            <thead>
+                <tr>
+                    <th>节点</th>
+                    <th>myid</th>
+                    <th>zxid</th>
+                    <th>对比结果</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>ZK-1</td>
+                    <td>1</td>
+                    <td>0x100 (256)</td>
+                    <td>-</td>
+                </tr>
+                <tr>
+                    <td>ZK-2</td>
+                    <td>2</td>
+                    <td>0x200 (512)</td>
+                    <td>-</td>
+                </tr>
+                <tr>
+                    <td>ZK-3</td>
+                    <td>3</td>
+                    <td>0x150 (336)</td>
+                    <td>-</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <!-- 必要条件说明 -->
+        <div class="info-box">
+            <h3>🎯 成为 Leader 的必要条件</h3>
+            <ul>
+                <li>必须具有最高的 zxid（数据最新）</li>
+                <li>当 zxid 相同时，myid 最大</li>
+                <li>获得集群中大多数节点（至少 n/2+1）的投票</li>
+                <li>在本例中：3个节点需要至少2票（3/2+1=2）</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        let currentStep = 0;
+        const steps = [
+            // 步骤0：初始状态
+            {
+                description: {
+                    title: '步骤 1：集群初始状态',
+                    content: '三个 Zookeeper 节点启动完成，每个节点都有自己的 <span class="highlight">myid</span>（节点ID）和 <span class="highlight">zxid</span>（事务ID）。所有节点都处于 <span class="highlight">LOOKING</span> 状态，准备开始选举。'
+                },
+                nodes: {
+                    1: { status: 'looking' },
+                    2: { status: 'looking' },
+                    3: { status: 'looking' }
+                },
+                votes: { show: false },
+                lines: { show: false },
+                comparison: [
+                    { node: 'ZK-1', result: '-' },
+                    { node: 'ZK-2', result: '-' },
+                    { node: 'ZK-3', result: '-' }
+                ]
+            },
+            // 步骤1：发起投票
+            {
+                description: {
+                    title: '步骤 2：每个节点发起投票',
+                    content: '因为是第一次选举，每个节点都会投票给自己。<br>• ZK-1 投票: <span class="highlight">(myid=1, zxid=0x100)</span><br>• ZK-2 投票: <span class="highlight">(myid=2, zxid=0x200)</span><br>• ZK-3 投票: <span class="highlight">(myid=3, zxid=0x150)</span>'
+                },
+                nodes: {
+                    1: { status: 'looking' },
+                    2: { status: 'looking' },
+                    3: { status: 'looking' }
+                },
+                votes: { show: true },
+                lines: { show: false },
+                comparison: [
+                    { node: 'ZK-1', result: '投票 (1, 0x100)' },
+                    { node: 'ZK-2', result: '投票 (2, 0x200)' },
+                    { node: 'ZK-3', result: '投票 (3, 0x150)' }
+                ]
+            },
+            // 步骤2：交换投票
+            {
+                description: {
+                    title: '步骤 3：节点间交换投票信息',
+                    content: '每个节点将自己的投票广播给其他节点，并接收来自其他节点的投票。节点会检查投票的有效性：<br>• 投票时间是否有效<br>• 发送者是否处于 <span class="highlight">LOOKING</span> 状态'
+                },
+                nodes: {
+                    1: { status: 'looking' },
+                    2: { status: 'looking' },
+                    3: { status: 'looking' }
+                },
+                votes: { show: true },
+                lines: { show: true },
+                comparison: [
+                    { node: 'ZK-1', result: '接收 (2,0x200) (3,0x150)' },
+                    { node: 'ZK-2', result: '接收 (1,0x100) (3,0x150)' },
+                    { node: 'ZK-3', result: '接收 (1,0x100) (2,0x200)' }
+                ]
+            },
+            // 步骤3：对比投票
+            {
+                description: {
+                    title: '步骤 4：对比投票选出最优',
+                    content: '每个节点对比所有收到的投票：<br>• <span class="highlight">优先对比 zxid</span>：0x200 > 0x150 > 0x100<br>• ZK-2 的 zxid 最大 (0x200)，因此 ZK-2 胜出<br>• 所有节点都会更新自己的投票，改投给 ZK-2'
+                },
+                nodes: {
+                    1: { status: 'looking' },
+                    2: { status: 'looking' },
+                    3: { status: 'looking' }
+                },
+                votes: { show: true },
+                lines: { show: true },
+                comparison: [
+                    { node: 'ZK-1', result: '❌ 0x100 < 0x200', winner: false },
+                    { node: 'ZK-2', result: '✅ 0x200 最大', winner: true },
+                    { node: 'ZK-3', result: '❌ 0x150 < 0x200', winner: false }
+                ]
+            },
+            // 步骤4：选出Leader
+            {
+                description: {
+                    title: '步骤 5：选举完成，确定角色',
+                    content: 'ZK-2 获得所有节点的投票（3票 > 3/2+1=2票），满足过半条件。<br>• <span class="highlight">ZK-2 成为 Leader</span>（具有最高的 zxid）<br>• ZK-1 和 ZK-3 成为 Follower<br>集群选举完成，开始正常工作！'
+                },
+                nodes: {
+                    1: { status: 'follower' },
+                    2: { status: 'leader' },
+                    3: { status: 'follower' }
+                },
+                votes: { show: false },
+                lines: { show: false },
+                comparison: [
+                    { node: 'ZK-1', result: 'Follower', winner: false },
+                    { node: 'ZK-2', result: '👑 Leader (3/3票)', winner: true },
+                    { node: 'ZK-3', result: 'Follower', winner: false }
+                ]
+            }
+        ];
+
+        function showStep(stepIndex) {
+            currentStep = stepIndex;
+            const step = steps[stepIndex];
+
+            // 更新步骤按钮状态
+            document.querySelectorAll('.step-btn').forEach((btn, idx) => {
+                btn.classList.toggle('active', idx === stepIndex);
+            });
+
+            // 更新步骤说明
+            const descBox = document.getElementById('step-desc');
+            descBox.querySelector('h3').textContent = step.description.title;
+            descBox.querySelector('p').innerHTML = step.description.content;
+
+            // 更新节点状态
+            for (let nodeId in step.nodes) {
+                const node = document.getElementById('node' + nodeId);
+                const card = node.querySelector('.node-card');
+                const statusSpan = node.querySelector('.node-status');
+                const status = step.nodes[nodeId].status;
+
+                // 清除所有状态类
+                card.classList.remove('leader', 'follower');
+                statusSpan.className = 'node-status';
+
+                // 添加皇冠
+                let crown = node.querySelector('.crown');
+                if (status === 'leader') {
+                    card.classList.add('leader');
+                    statusSpan.classList.add('status-leader');
+                    statusSpan.textContent = 'LEADER';
+                    if (!crown) {
+                        crown = document.createElement('div');
+                        crown.className = 'crown';
+                        crown.textContent = '👑';
+                        card.appendChild(crown);
+                    }
+                } else if (status === 'follower') {
+                    card.classList.add('follower');
+                    statusSpan.classList.add('status-follower');
+                    statusSpan.textContent = 'FOLLOWER';
+                    if (crown) crown.remove();
+                } else {
+                    statusSpan.classList.add('status-looking');
+                    statusSpan.textContent = 'LOOKING';
+                    if (crown) crown.remove();
+                }
+            }
+
+            // 显示/隐藏投票信息
+            const voteBoxes = document.querySelectorAll('.vote-box');
+            voteBoxes.forEach(box => {
+                box.classList.toggle('show', step.votes.show);
+            });
+
+            // 显示/隐藏连接线
+            updateLines(step.lines.show);
+
+            // 更新对比表格
+            const tbody = document.querySelector('.comparison-table tbody');
+            tbody.innerHTML = step.comparison.map(row => `
+                <tr ${row.winner ? 'class="winner"' : ''}>
+                    <td>${row.node}</td>
+                    <td>${row.node === 'ZK-1' ? '1' : row.node === 'ZK-2' ? '2' : '3'}</td>
+                    <td>${row.node === 'ZK-1' ? '0x100 (256)' : row.node === 'ZK-2' ? '0x200 (512)' : '0x150 (336)'}</td>
+                    <td>${row.result}</td>
+                </tr>
+            `).join('');
+        }
+
+        function updateLines(show) {
+            const svg = document.getElementById('connections');
+            const existingLines = svg.querySelectorAll('.vote-line');
+            existingLines.forEach(line => line.remove());
+
+            if (!show) return;
+
+            // 添加投票交换线条
+            const lines = [
+                // 从节点1到节点2和3
+                { x1: '20%', y1: '50%', x2: '45%', y2: '50%' },
+                { x1: '20%', y1: '50%', x2: '80%', y2: '50%' },
+                // 从节点2到节点1和3
+                { x1: '50%', y1: '50%', x2: '20%', y2: '50%' },
+                { x1: '50%', y1: '50%', x2: '80%', y2: '50%' },
+                // 从节点3到节点1和2
+                { x1: '80%', y1: '50%', x2: '20%', y2: '50%' },
+                { x1: '80%', y1: '50%', x2: '50%', y2: '50%' }
+            ];
+
+            lines.forEach((lineData, idx) => {
+                setTimeout(() => {
+                    const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                    line.setAttribute('x1', lineData.x1);
+                    line.setAttribute('y1', lineData.y1);
+                    line.setAttribute('x2', lineData.x2);
+                    line.setAttribute('y2', lineData.y2);
+                    line.setAttribute('class', 'vote-line show');
+                    line.setAttribute('marker-end', 'url(#arrow)');
+                    svg.appendChild(line);
+                }, idx * 100);
+            });
+        }
+
+        // 初始化显示第一步
+        showStep(0);
+
+        // 自动播放功能（可选）
+        let autoPlay = false;
+        function startAutoPlay() {
+            if (autoPlay) return;
+            autoPlay = true;
+            const interval = setInterval(() => {
+                if (currentStep < steps.length - 1) {
+                    showStep(currentStep + 1);
+                } else {
+                    clearInterval(interval);
+                    autoPlay = false;
+                }
+            }, 3000);
+        }
+    </script>
+</body>
+</html>
