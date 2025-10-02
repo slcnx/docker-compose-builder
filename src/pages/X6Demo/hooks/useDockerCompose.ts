@@ -54,7 +54,7 @@ export const useDockerCompose = (
       // 读取 entrypoint 和 command 节点（只使用节点数据）
       const scriptNodes = children.filter((child: any) => child.shape === 'docker-script')
       let entrypoint = ''
-      let command = 'tail -f /etc/hosts' // 默认值
+      let command = '' // 不设置默认值
 
       scriptNodes.forEach((scriptNode: any) => {
         const scriptData = scriptNode.getData()
@@ -231,7 +231,7 @@ export const useDockerCompose = (
             : undefined,
           command: serviceConfig.command
             ? (Array.isArray(serviceConfig.command) ? serviceConfig.command.join(' ') : serviceConfig.command)
-            : 'tail -f /etc/hosts',
+            : undefined,
           ports: ports,
           volumes: volumes,
           networkInterfaces: networkInterfaces,
@@ -278,7 +278,7 @@ export const useDockerCompose = (
           entrypointIsArray: Array.isArray(serviceConfig.entrypoint), // 记录原始格式
           command: serviceConfig.command
             ? (Array.isArray(serviceConfig.command) ? serviceConfig.command.join(' ') : serviceConfig.command)
-            : 'tail -f /etc/hosts',
+            : undefined,
           commandIsArray: Array.isArray(serviceConfig.command), // 记录原始格式
           restart: serviceConfig.restart || 'unless-stopped',
           depends_on: dependsOn
@@ -363,6 +363,7 @@ export const useDockerCompose = (
                     strokeWidth: 3,
                   }
                 },
+                zIndex: 2,
                 data: {
                   originalStroke: '#28a745',
                   originalWidth: 3,
@@ -437,7 +438,7 @@ export const useDockerCompose = (
                       },
                     },
                   },
-                  zIndex: 0,
+                  zIndex: 1,
                 })
 
                 console.log(`连接网卡 ${networkInterface.interfaceName} 到交换机 ${networkInterface.switchName}`)
@@ -449,6 +450,12 @@ export const useDockerCompose = (
         console.log('所有网络连接创建完成')
 
         // 创建依赖关系连接
+        // 用于记录每个节点的入端口和出端口（每个节点最多2个端口）
+        const nodeInPorts: Record<string, { portId: string; group: string }> = {}
+        const nodeOutPorts: Record<string, { portId: string; group: string }> = {}
+        // 用于记录出边数量（用于计算偏移）
+        const outEdgeCounters: Record<string, number> = {}
+
         Object.entries(composeData.services).forEach(([serviceName, serviceConfig]: [string, any]) => {
           const currentNode = serviceNodes[serviceName]
           if (!currentNode) return
@@ -459,31 +466,106 @@ export const useDockerCompose = (
           dependsOn.forEach((dependencyName: string) => {
             const dependencyNode = serviceNodes[dependencyName]
             if (dependencyNode) {
+              // 获取节点位置
+              const sourceBBox = dependencyNode.getBBox()
+              const targetBBox = currentNode.getBBox()
+
+              // 计算相对位置，决定使用哪个方向的锚点
+              const dx = targetBBox.center.x - sourceBBox.center.x
+              const dy = targetBBox.center.y - sourceBBox.center.y
+
+              // 根据相对位置智能选择锚点方向
+              let sourceDirection: string
+              let targetDirection: string
+
+              if (Math.abs(dx) > Math.abs(dy)) {
+                // 水平方向距离更大
+                if (dx > 0) {
+                  // 目标在源的右侧
+                  sourceDirection = 'right'
+                  targetDirection = 'left'
+                } else {
+                  // 目标在源的左侧
+                  sourceDirection = 'left'
+                  targetDirection = 'right'
+                }
+              } else {
+                // 垂直方向距离更大
+                if (dy > 0) {
+                  // 目标在源的下方
+                  sourceDirection = 'bottom'
+                  targetDirection = 'top'
+                } else {
+                  // 目标在源的上方
+                  sourceDirection = 'top'
+                  targetDirection = 'bottom'
+                }
+              }
+
+              // 源节点：所有出边共用同一个出端口
+              let sourcePortInfo = nodeOutPorts[dependencyNode.id]
+              if (!sourcePortInfo) {
+                // 第一次创建出端口，使用当前方向
+                sourcePortInfo = {
+                  portId: 'out-port',
+                  group: sourceDirection
+                }
+                nodeOutPorts[dependencyNode.id] = sourcePortInfo
+
+                const existingPorts = dependencyNode.getPorts()
+                const portExists = existingPorts.some((p: any) => p.id === 'out-port')
+
+                if (!portExists) {
+                  dependencyNode.addPort({
+                    id: 'out-port',
+                    group: sourceDirection,
+                  })
+                }
+              }
+
+              // 目标节点：所有入边共用同一个入端口
+              let targetPortInfo = nodeInPorts[currentNode.id]
+              if (!targetPortInfo) {
+                // 第一次创建入端口，使用当前方向
+                targetPortInfo = {
+                  portId: 'in-port',
+                  group: targetDirection
+                }
+                nodeInPorts[currentNode.id] = targetPortInfo
+
+                const existingPorts = currentNode.getPorts()
+                const portExists = existingPorts.some((p: any) => p.id === 'in-port')
+
+                if (!portExists) {
+                  currentNode.addPort({
+                    id: 'in-port',
+                    group: targetDirection,
+                  })
+                }
+              }
+
+              // 计算出边数量用于偏移
+              const outEdgeCount = (outEdgeCounters[dependencyNode.id] || 0)
+              outEdgeCounters[dependencyNode.id] = outEdgeCount + 1
+
+              // 根据边的数量计算偏移量
+              const offsetValue = 32 + (outEdgeCount % 3) * 16 // 32, 48, 64 循环
+
               // 创建从被依赖容器到依赖容器的连线（A -> B，B依赖A）
               graph.addEdge({
                 source: {
                   cell: dependencyNode.id,
-                  anchor: {
-                    name: 'center',
-                  },
-                  connectionPoint: {
-                    name: 'boundary',
-                  },
+                  port: sourcePortInfo.portId,
                 },
                 target: {
                   cell: currentNode.id,
-                  anchor: {
-                    name: 'center',
-                  },
-                  connectionPoint: {
-                    name: 'boundary',
-                  },
+                  port: targetPortInfo.portId,
                 },
                 router: {
-                  name: 'manhattan',
+                  name: 'er',
                   args: {
-                    padding: 1,
-                    step: 10,
+                    offset: offsetValue,
+                    direction: 'H', // 水平方向优先
                   },
                 },
                 attrs: {
@@ -498,7 +580,7 @@ export const useDockerCompose = (
                     },
                   },
                 },
-                zIndex: 1,
+                zIndex: 10,
                 data: {
                   type: 'dependency',
                   originalStroke: '#ff6b6b',
@@ -506,7 +588,7 @@ export const useDockerCompose = (
                 },
               })
 
-              console.log(`创建依赖关系连接: ${dependencyName} -> ${serviceName}`)
+              console.log(`创建依赖关系连接: ${dependencyName} -> ${serviceName} (源端口: ${sourcePortInfo.portId}, 目标端口: ${targetPortInfo.portId})`)
             }
           })
         })

@@ -24,6 +24,7 @@ const Example: React.FC = () => {
   const graphRef = useRef<Graph>()
   const hasRestoredRef = useRef(false) // 标记是否已经尝试过恢复
   const [isToolbarCollapsed, setIsToolbarCollapsed] = useState(false) // 工具栏折叠状态
+  const [edgeStyle, setEdgeStyle] = useState<'manhattan' | 'smooth'>('manhattan') // 连线样式：直角或曲线
 
   // 使用存储 Hook
   const { saveYaml, clearStorage, checkAndPromptRestore } = useStorage()
@@ -177,6 +178,34 @@ const Example: React.FC = () => {
   const handleZoomReset = () => {
     if (!graphRef.current) return
     graphRef.current.zoomTo(1)
+  }
+
+  // 切换连线样式
+  const toggleEdgeStyle = () => {
+    if (!graphRef.current) return
+
+    const newStyle = edgeStyle === 'manhattan' ? 'smooth' : 'manhattan'
+    setEdgeStyle(newStyle)
+
+    // 更新所有边的连线样式
+    const edges = graphRef.current.getEdges()
+    edges.forEach(edge => {
+      if (newStyle === 'smooth') {
+        // 切换到曲线
+        edge.setRouter({ name: 'normal' })
+        edge.setConnector({ name: 'smooth' })
+      } else {
+        // 切换到直角
+        edge.setRouter({
+          name: 'manhattan',
+          args: {
+            padding: 1,
+            step: 10,
+          }
+        })
+        edge.setConnector({ name: 'normal' })
+      }
+    })
   }
   useEffect(() => {
     if (!containerRef.current || !stencilRef.current || !minimapRef.current) return
@@ -390,10 +419,16 @@ const Example: React.FC = () => {
         const originalStroke = data.originalStroke || '#6c757d'
         const originalWidth = data.originalWidth || 2
 
+        // 根据连线类型选择高亮颜色
+        let hoverColor = '#007bff'
+        if (data.type === 'dependency') {
+          hoverColor = '#e63946' // 依赖关系用更深的红色高亮
+        }
+
         edge.attr({
           line: {
-            strokeWidth: originalWidth + 1,
-            stroke: '#007bff'
+            strokeWidth: originalWidth + 2,
+            stroke: hoverColor
           }
         })
 
@@ -1125,6 +1160,34 @@ const Example: React.FC = () => {
           title="重置画布（清空所有内容）"
         >
           🔄
+        </button>
+
+        {/* 切换连线样式按钮 */}
+        <button
+          onClick={toggleEdgeStyle}
+          style={{
+            width: '60px',
+            height: '60px',
+            borderRadius: '50%',
+            backgroundColor: edgeStyle === 'manhattan' ? '#fd7e14' : '#20c997',
+            color: 'white',
+            border: 'none',
+            fontSize: '24px',
+            cursor: 'pointer',
+            boxShadow: edgeStyle === 'manhattan' ? '0 4px 12px rgba(253, 126, 20, 0.3)' : '0 4px 12px rgba(32, 201, 151, 0.3)',
+            transition: 'all 0.3s ease',
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.transform = 'scale(1.1)'
+            e.currentTarget.style.backgroundColor = edgeStyle === 'manhattan' ? '#e8590c' : '#1aa179'
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.transform = 'scale(1)'
+            e.currentTarget.style.backgroundColor = edgeStyle === 'manhattan' ? '#fd7e14' : '#20c997'
+          }}
+          title={edgeStyle === 'manhattan' ? '切换到曲线' : '切换到直角连线'}
+        >
+          {edgeStyle === 'manhattan' ? '📐' : '〰️'}
         </button>
       </div>
 

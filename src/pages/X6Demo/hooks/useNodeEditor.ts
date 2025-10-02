@@ -55,7 +55,12 @@ export const useNodeEditor = (graph?: Graph) => {
           backgroundColor: '#fff',
         },
         getText() {
-          return edge.getLabels()?.[0]?.attrs?.text?.text || '';
+          const labels = edge.getLabels()
+          if (!labels || labels.length === 0) return ''
+          const firstLabel = labels[0]
+          // 兼容不同的标签结构
+          const text = firstLabel?.attrs?.label?.text || firstLabel?.attrs?.text?.text || ''
+          return typeof text === 'string' ? text : ''
         },
         setText(text: string) {
           const newText = text.trim();

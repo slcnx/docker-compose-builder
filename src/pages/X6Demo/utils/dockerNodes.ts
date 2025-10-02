@@ -1532,7 +1532,7 @@ export class DockerComponentFactory {
             },
           },
         },
-        zIndex: 0,
+        zIndex: 2,
       })
 
       console.log(`创建路由器并连接: ${routerName}`)
