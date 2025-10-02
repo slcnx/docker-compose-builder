@@ -4,6 +4,7 @@ import { codeInspectorPlugin } from 'code-inspector-plugin';
 export default defineConfig({
   base: '/docker-compose-builder/dist/',
   publicPath: '/docker-compose-builder/dist/',
+  exportStatic: {},
   chainWebpack(memo) {
     memo.plugin('code-inspector-plugin').use(
       codeInspectorPlugin({
