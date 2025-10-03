@@ -99,3 +99,10 @@
   z-index: 100;
   overflow: hidden;
 }
+
+/* 边的动画效果 */
+@keyframes ant-line {
+  to {
+    stroke-dashoffset: -1000;
+  }
+}

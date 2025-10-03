@@ -6,6 +6,8 @@ interface UseGraphEventsProps {
   handleContextMenu: (e: any, node: any) => void
   hideContextMenu: () => void
   handleDoubleClick: (cell: any, e?: any) => void
+  handleEdgeClick?: (e: any, edge: any) => void
+  hideEdgeContextMenu?: () => void
 }
 
 export const useGraphEvents = ({
@@ -13,6 +15,8 @@ export const useGraphEvents = ({
   handleContextMenu,
   hideContextMenu,
   handleDoubleClick,
+  handleEdgeClick,
+  hideEdgeContextMenu,
 }: UseGraphEventsProps) => {
   useEffect(() => {
     if (!graph) return
@@ -32,6 +36,24 @@ export const useGraphEvents = ({
     // 点击空白处隐藏右键菜单
     const onBlankClick = () => {
       hideContextMenu()
+      if (hideEdgeContextMenu) {
+        hideEdgeContextMenu()
+      }
+    }
+
+    // 边的点击事件（用于显示上下文菜单）
+    const onEdgeClick = ({ e, x, y, edge, view }: any) => {
+      if (handleEdgeClick) {
+        // 传递完整的事件参数给处理函数
+        handleEdgeClick(e, edge)
+      }
+    }
+
+    // 边的右键菜单事件
+    const onEdgeContextMenu = ({ e, edge }: any) => {
+      if (handleEdgeClick) {
+        handleEdgeClick(e, edge)
+      }
     }
 
     // 节点双击编辑
@@ -257,6 +279,8 @@ export const useGraphEvents = ({
     graph.on('node:mouseleave', onNodeMouseLeave)
     graph.on('edge:mouseenter', onEdgeMouseEnter)
     graph.on('edge:mouseleave', onEdgeMouseLeave)
+    graph.on('edge:click', onEdgeClick) // 边的点击事件
+    graph.on('edge:contextmenu', onEdgeContextMenu) // 边的右键菜单事件
     graph.on('selection:changed', onSelectionChanged)
 
     // 点击空白处隐藏右键菜单（document 事件）
@@ -272,8 +296,10 @@ export const useGraphEvents = ({
       graph.off('node:mouseleave', onNodeMouseLeave)
       graph.off('edge:mouseenter', onEdgeMouseEnter)
       graph.off('edge:mouseleave', onEdgeMouseLeave)
+      graph.off('edge:click', onEdgeClick)
+      graph.off('edge:contextmenu', onEdgeContextMenu)
       graph.off('selection:changed', onSelectionChanged)
       document.removeEventListener('click', hideContextMenu)
     }
-  }, [graph, handleContextMenu, hideContextMenu, handleDoubleClick])
+  }, [graph, handleContextMenu, hideContextMenu, handleDoubleClick, handleEdgeClick, hideEdgeContextMenu])
 }

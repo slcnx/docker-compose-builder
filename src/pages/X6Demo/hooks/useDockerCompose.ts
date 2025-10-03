@@ -451,6 +451,11 @@ export const useDockerCompose = (
                   line: {
                     stroke: '#28a745',
                     strokeWidth: 3,
+                    strokeDasharray: 5,
+                    targetMarker: 'classic',
+                    style: {
+                      animation: 'ant-line 30s infinite linear',
+                    },
                   }
                 },
                 zIndex: 2,
@@ -521,10 +526,14 @@ export const useDockerCompose = (
                     line: {
                       stroke: '#28a745',
                       strokeWidth: 2,
+                      strokeDasharray: 5,
                       targetMarker: {
                         name: 'block',
                         width: 8,
                         height: 6,
+                      },
+                      style: {
+                        animation: 'ant-line 30s infinite linear',
                       },
                     },
                   },
@@ -667,6 +676,9 @@ export const useDockerCompose = (
                       name: 'block',
                       width: 8,
                       height: 6,
+                    },
+                    style: {
+                      animation: 'ant-line 30s infinite linear',
                     },
                   },
                 },

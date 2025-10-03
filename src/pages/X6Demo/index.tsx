@@ -3,9 +3,11 @@ import { Graph, Shape, Addon } from '@antv/x6'
 import './index.css'
 import { registerDockerNodes, DockerComponentFactory } from './utils/dockerNodes'
 import { DockerPanel } from './components/DockerPanel'
+import { EdgeContextMenu } from './components/EdgeContextMenu'
 import { useStorage } from './hooks/useStorage'
 import { useDockerCompose } from './hooks/useDockerCompose'
 import { useDockerContextMenu } from './hooks/useDockerContextMenu'
+import { useEdgeContextMenu } from './hooks/useEdgeContextMenu'
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts'
 import { usePanningMode } from './hooks/usePanningMode'
 import { useNodeEditor } from './hooks/useNodeEditor'
@@ -61,12 +63,26 @@ const Example: React.FC = () => {
     setNetworkModalData
   } = useDockerContextMenu(graphRef.current, dockerFactory)
 
+  // 使用边的右键菜单 Hook
+  const {
+    edgeContextMenu,
+    handleEdgeContextMenu,
+    hideEdgeContextMenu,
+    handleEdgeMenuItemClick,
+    edgeRelationModal,
+    closeEdgeRelationModal,
+    isFocusMode,
+    exitFocusMode,
+  } = useEdgeContextMenu(graphRef.current)
+
   // 使用图事件 Hook
   useGraphEvents({
     graph: graphRef.current,
     handleContextMenu,
     hideContextMenu,
     handleDoubleClick,
+    handleEdgeClick: handleEdgeContextMenu,
+    hideEdgeContextMenu,
   })
 
   // 检查并恢复localStorage中的数据（使用 useStorage hook）
@@ -778,6 +794,44 @@ const Example: React.FC = () => {
 
       {/* 右侧小地图 */}
       <div ref={minimapRef} className="minimap-container" />
+
+      {/* 退出聚焦模式按钮 */}
+      {isFocusMode && (
+        <button
+          onClick={exitFocusMode}
+          style={{
+            position: 'fixed',
+            bottom: '30px',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            padding: '12px 24px',
+            borderRadius: '24px',
+            backgroundColor: '#ff4d4f',
+            color: 'white',
+            border: 'none',
+            fontSize: '16px',
+            fontWeight: 'bold',
+            cursor: 'pointer',
+            boxShadow: '0 4px 16px rgba(255, 77, 79, 0.4)',
+            transition: 'all 0.3s ease',
+            zIndex: 1002,
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.transform = 'translateX(-50%) scale(1.05)'
+            e.currentTarget.style.backgroundColor = '#cf1322'
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.transform = 'translateX(-50%) scale(1)'
+            e.currentTarget.style.backgroundColor = '#ff4d4f'
+          }}
+          title="退出聚焦模式，显示所有元素"
+        >
+          ↩️ 退出聚焦模式
+        </button>
+      )}
 
       {/* 工具栏折叠/展开按钮 */}
       <button
@@ -1895,6 +1949,13 @@ volumes:
           )}
         </div>
       )}
+
+      {/* 边的右键菜单 */}
+      <EdgeContextMenu
+        contextMenu={edgeContextMenu}
+        onMenuItemClick={handleEdgeMenuItemClick}
+        onHide={hideEdgeContextMenu}
+      />
     </div>
   )
 }

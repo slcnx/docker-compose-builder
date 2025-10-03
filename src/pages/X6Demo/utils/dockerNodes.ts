@@ -1929,10 +1929,14 @@ export class DockerComponentFactory {
           line: {
             stroke: '#28a745',
             strokeWidth: 3,
+            strokeDasharray: 5,
             targetMarker: {
               name: 'block',
               width: 8,
               height: 6,
+            },
+            style: {
+              animation: 'ant-line 30s infinite linear',
             },
           },
         },
@@ -2042,6 +2046,9 @@ export class DockerComponentFactory {
           stroke: '#6c757d',
           strokeWidth: 2,
           strokeDasharray: '2,2',
+          style: {
+            animation: 'ant-line 30s infinite linear',
+          },
         },
       },
       data: {
@@ -2119,10 +2126,14 @@ export class DockerComponentFactory {
         line: {
           stroke: '#28a745',
           strokeWidth: 3,
+          strokeDasharray: 5,
           targetMarker: {
             name: 'block',
             width: 8,
             height: 6,
+          },
+          style: {
+            animation: 'ant-line 30s infinite linear',
           },
         },
       },
