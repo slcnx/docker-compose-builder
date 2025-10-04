@@ -1285,6 +1285,205 @@ export const registerDockerNodes = () => {
     },
     true,
   )
+
+  // DNS节点
+  Graph.registerNode(
+    'docker-dns',
+    {
+      inherit: 'ellipse',
+      width: 100,
+      height: 40,
+      attrs: {
+        body: {
+          stroke: '#00c853',
+          strokeWidth: 2,
+          fill: '#e8f5e9',
+        },
+        text: {
+          fontSize: 11,
+          fill: '#00c853',
+          fontWeight: 'bold',
+          textWrap: {
+            width: -10,
+            height: -10,
+            ellipsis: true,
+          },
+        },
+      },
+      ports: {
+        groups: {
+          top: {
+            position: 'top',
+            attrs: {
+              circle: {
+                r: 4,
+                magnet: true,
+                stroke: '#00c853',
+                strokeWidth: 2,
+                fill: '#fff',
+                style: {
+                  visibility: 'hidden',
+                },
+              },
+            },
+          },
+          right: {
+            position: 'right',
+            attrs: {
+              circle: {
+                r: 4,
+                magnet: true,
+                stroke: '#00c853',
+                strokeWidth: 2,
+                fill: '#fff',
+                style: {
+                  visibility: 'hidden',
+                },
+              },
+            },
+          },
+          bottom: {
+            position: 'bottom',
+            attrs: {
+              circle: {
+                r: 4,
+                magnet: true,
+                stroke: '#00c853',
+                strokeWidth: 2,
+                fill: '#fff',
+                style: {
+                  visibility: 'hidden',
+                },
+              },
+            },
+          },
+          left: {
+            position: 'left',
+            attrs: {
+              circle: {
+                r: 4,
+                magnet: true,
+                stroke: '#00c853',
+                strokeWidth: 2,
+                fill: '#fff',
+                style: {
+                  visibility: 'hidden',
+                },
+              },
+            },
+          },
+        },
+        items: [
+          { group: 'top' },
+          { group: 'right' },
+          { group: 'bottom' },
+          { group: 'left' },
+        ],
+      },
+    },
+    true,
+  )
+
+  // 外部节点（用于外部DNS等）
+  Graph.registerNode(
+    'external-node',
+    {
+      inherit: 'rect',
+      width: 150,
+      height: 80,
+      attrs: {
+        body: {
+          stroke: '#9e9e9e',
+          strokeWidth: 2,
+          fill: '#f5f5f5',
+          rx: 5,
+          ry: 5,
+          strokeDasharray: '5,5',
+        },
+        text: {
+          fontSize: 12,
+          fill: '#424242',
+          fontWeight: 'bold',
+          textWrap: {
+            width: -10,
+            height: -10,
+            ellipsis: true,
+          },
+        },
+      },
+      ports: {
+        groups: {
+          top: {
+            position: 'top',
+            attrs: {
+              circle: {
+                r: 4,
+                magnet: true,
+                stroke: '#9e9e9e',
+                strokeWidth: 2,
+                fill: '#fff',
+                style: {
+                  visibility: 'hidden',
+                },
+              },
+            },
+          },
+          right: {
+            position: 'right',
+            attrs: {
+              circle: {
+                r: 4,
+                magnet: true,
+                stroke: '#9e9e9e',
+                strokeWidth: 2,
+                fill: '#fff',
+                style: {
+                  visibility: 'hidden',
+                },
+              },
+            },
+          },
+          bottom: {
+            position: 'bottom',
+            attrs: {
+              circle: {
+                r: 4,
+                magnet: true,
+                stroke: '#9e9e9e',
+                strokeWidth: 2,
+                fill: '#fff',
+                style: {
+                  visibility: 'hidden',
+                },
+              },
+            },
+          },
+          left: {
+            position: 'left',
+            attrs: {
+              circle: {
+                r: 4,
+                magnet: true,
+                stroke: '#9e9e9e',
+                strokeWidth: 2,
+                fill: '#fff',
+                style: {
+                  visibility: 'hidden',
+                },
+              },
+            },
+          },
+        },
+        items: [
+          { group: 'top' },
+          { group: 'right' },
+          { group: 'bottom' },
+          { group: 'left' },
+        ],
+      },
+    },
+    true,
+  )
 }
 
 // Docker 组件工厂
@@ -1475,6 +1674,7 @@ export class DockerComponentFactory {
       ipConfig: 'static' | 'dynamic'
       staticIP?: string
     }>
+    dns?: string[] // DNS配置
     position?: { x: number; y: number } // 添加可选的位置参数
   }) {
     // 首先创建父容器节点
@@ -1483,7 +1683,7 @@ export class DockerComponentFactory {
       shape: 'docker-container',
       x: containerPosition.x,
       y: containerPosition.y,
-      width: 720, // 增加宽度以容纳右移的网络接口
+      width: 770, // 增加宽度以容纳左侧DNS和右侧网络接口
       height: 320,
       zIndex: 1,
       label: '',
@@ -1686,6 +1886,25 @@ export class DockerComponentFactory {
       })
 
       console.log(`创建网络接口: ${networkInterface.interfaceName} -> ${networkInterface.switchName}`, networkInterface)
+    })
+
+    // 创建DNS节点 - 放置在容器外部左侧
+    config.dns?.forEach((dnsAddress, index) => {
+      const dnsNode = this.graph.addNode({
+        shape: 'docker-dns',
+        x: containerPosition.x - 60, // 容器左侧外部
+        y: containerPosition.y + 220 + (index * 50), // 垂直排列
+        label: `DNS\n${dnsAddress}`,
+        zIndex: 10,
+        data: {
+          dnsAddress: dnsAddress,
+          dnsType: 'external', // 将由connectDNS自动判断
+          needsConnection: true // 标记需要连接
+        }
+      })
+      childNodes.push(dnsNode)
+
+      console.log(`创建DNS节点: ${dnsAddress}`)
     })
 
     // 建立父子关系 - 这是关键步骤
@@ -2383,6 +2602,40 @@ export class DockerComponentFactory {
     return networkNode
   }
 
+  // 为容器动态添加DNS配置
+  addDNSToContainer(containerNode: any, dnsAddress: string = '8.8.8.8') {
+    const children = containerNode.getChildren() || []
+    const dnsNodes = children.filter((child: any) => child.shape === 'docker-dns')
+
+    // 计算新DNS节点的位置 - 放置在容器外部左侧
+    const containerPos = containerNode.getPosition()
+    const xOffset = -120 // 容器左侧外部
+    const yOffset = 220 + dnsNodes.length * 50 // 垂直排列
+
+    const dnsNode = this.graph.addNode({
+      shape: 'docker-dns',
+      x: containerPos.x + xOffset,
+      y: containerPos.y + yOffset,
+      label: `DNS\n${dnsAddress}`,
+      zIndex: 10,
+      data: {
+        dnsAddress: dnsAddress,
+        dnsType: 'external' // 默认为外部DNS，可以是 'external', 'container', 'gateway'
+      }
+    })
+
+    // 添加为子节点
+    containerNode.addChild(dnsNode)
+
+    // 自动连接DNS到目标
+    setTimeout(() => {
+      this.connectDNS(dnsNode, dnsAddress)
+    }, 100)
+
+    console.log(`添加DNS配置: ${dnsAddress}`)
+    return dnsNode
+  }
+
   // 删除子组件
   removeChildComponent(childNode: any) {
     const parent = childNode.getParent()
@@ -2466,6 +2719,20 @@ export class DockerComponentFactory {
             console.log(`从容器 ${parent.attr('text/text')} 移除网络接口 ${networkInterface.interfaceName}`)
           }
           break
+
+        case 'docker-dns':
+          // 从DNS配置数组中移除此DNS
+          const dnsData = childNode.getData()
+          const dnsAddress = dnsData?.dnsAddress
+          if (dnsAddress) {
+            const dnsServers = (config.dns || []).filter((dns: string) => dns !== dnsAddress)
+            parent.setData({
+              ...containerData,
+              config: { ...config, dns: dnsServers }
+            })
+            console.log(`从容器 ${parent.attr('text/text')} 移除DNS ${dnsAddress}`)
+          }
+          break
       }
 
       // 移除父子关系
@@ -2503,5 +2770,206 @@ export class DockerComponentFactory {
     }
 
     return stats
+  }
+
+  // 判断DNS地址类型
+  private determineDNSType(dnsAddress: string): 'external' | 'container' | 'gateway' {
+    // 检查是否是IP地址
+    const isIP = /^(\d{1,3}\.){3}\d{1,3}$/.test(dnsAddress)
+
+    if (isIP) {
+      // 检查是否是公共DNS (如 8.8.8.8, 1.1.1.1 等)
+      const publicDNS = ['8.8.8.8', '8.8.4.4', '1.1.1.1', '1.0.0.1', '114.114.114.114']
+      if (publicDNS.includes(dnsAddress)) {
+        return 'external'
+      }
+
+      // 检查是否以.1结尾（通常是网关）
+      if (dnsAddress.endsWith('.1')) {
+        return 'gateway'
+      }
+
+      // 其他私有IP可能是容器
+      return 'container'
+    }
+
+    // 如果不是IP地址，假定是容器名
+    return 'container'
+  }
+
+  // 创建或获取外部DNS节点
+  private getOrCreateExternalNode(dnsAddress: string) {
+    // 查找是否已存在相同的外部节点
+    const existingExternal = this.graph.getNodes().find(node =>
+      node.shape === 'external-node' &&
+      node.attr('text/text') === `外部DNS\n${dnsAddress}`
+    )
+
+    if (existingExternal) {
+      return existingExternal
+    }
+
+    // 创建新的外部节点，放在画布右上角
+    const externalNodes = this.graph.getNodes().filter(node => node.shape === 'external-node')
+
+    const externalNode = this.graph.addNode({
+      shape: 'external-node',
+      x: 1200 + (externalNodes.length % 3) * 160,
+      y: 50 + Math.floor(externalNodes.length / 3) * 100,
+      label: `外部DNS\n${dnsAddress}`,
+      zIndex: 5,
+      data: {
+        type: 'external-dns',
+        address: dnsAddress
+      }
+    })
+
+    console.log(`创建外部DNS节点: ${dnsAddress}`)
+    return externalNode
+  }
+
+  // 连接DNS节点到目标
+  connectDNS(dnsNode: any, targetAddress: string) {
+    const dnsData = dnsNode.getData() || {}
+    const dnsAddress = dnsData.dnsAddress || targetAddress
+    const dnsType = this.determineDNSType(dnsAddress)
+
+    let targetNode: any = null
+
+    switch (dnsType) {
+      case 'external':
+        // 连接到外部节点
+        targetNode = this.getOrCreateExternalNode(dnsAddress)
+        break
+
+      case 'gateway':
+        // 连接到路由器（网关）
+        const routers = this.graph.getNodes().filter(node => node.shape === 'network-router')
+        if (routers.length > 0) {
+          targetNode = routers[0]
+        } else {
+          // 如果没有路由器，创建一个
+          targetNode = this.createRouter('Gateway\n' + dnsAddress)
+        }
+        break
+
+      case 'container':
+        // 连接到容器
+        // 首先尝试通过IP地址匹配
+        const isIP = /^(\d{1,3}\.){3}\d{1,3}$/.test(dnsAddress)
+
+        if (isIP) {
+          // 查找具有该IP的网络接口
+          const networkNodes = this.graph.getNodes().filter(node => node.shape === 'docker-network')
+          const matchingNetwork = networkNodes.find(node => {
+            const label = node.attr('text/text')
+            return typeof label === 'string' && label.includes(dnsAddress)
+          })
+
+          if (matchingNetwork) {
+            // 找到匹配的网络接口，连接到其父容器
+            targetNode = matchingNetwork.getParent()
+          }
+        } else {
+          // 通过容器名匹配
+          const containers = this.graph.getNodes().filter(node => node.shape === 'docker-container')
+          const matchingContainer = containers.find(container => {
+            const children = container.getChildren() || []
+            const serviceNode = children.find((child: any) => child.shape === 'docker-service')
+            if (serviceNode) {
+              const serviceName = serviceNode.attr('text/text')
+              return serviceName === dnsAddress
+            }
+            return false
+          })
+
+          if (matchingContainer) {
+            targetNode = matchingContainer
+          }
+        }
+
+        // 如果没有找到匹配的容器，创建外部节点
+        if (!targetNode) {
+          targetNode = this.getOrCreateExternalNode(dnsAddress)
+        }
+        break
+    }
+
+    if (!targetNode) {
+      console.warn(`未找到DNS目标: ${dnsAddress}`)
+      return null
+    }
+
+    // 创建绿色连接线
+    const edge = this.graph.addEdge({
+      source: {
+        cell: dnsNode.id,
+        anchor: {
+          name: 'center',
+        },
+        connectionPoint: {
+          name: 'boundary',
+        },
+      },
+      target: {
+        cell: targetNode.id,
+        anchor: {
+          name: 'center',
+        },
+        connectionPoint: {
+          name: 'boundary',
+        },
+      },
+      router: {
+        name: 'manhattan',
+        args: {
+          padding: 1,
+          step: 10,
+        },
+      },
+      attrs: {
+        line: {
+          stroke: '#00c853', // 绿色
+          strokeWidth: 2,
+          strokeDasharray: '5,5',
+          targetMarker: {
+            name: 'block',
+            width: 8,
+            height: 6,
+          },
+          style: {
+            animation: 'ant-line 30s infinite linear',
+          },
+        },
+      },
+      data: {
+        originalStroke: '#00c853',
+        originalWidth: 2,
+        connectionType: 'dns',
+      },
+      labels: [
+        {
+          attrs: {
+            text: {
+              text: 'DNS',
+              fontSize: 10,
+              fill: '#00c853',
+            },
+          },
+        },
+      ],
+      zIndex: 2,
+    })
+
+    // 更新DNS节点的数据，记录连接状态
+    dnsNode.setData({
+      ...dnsData,
+      dnsType: dnsType,
+      isConnected: true,
+      targetAddress: dnsAddress,
+    })
+
+    console.log(`DNS连接: ${dnsAddress} (类型: ${dnsType})`)
+    return { edge, targetNode, dnsType }
   }
 }

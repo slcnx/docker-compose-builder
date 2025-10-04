@@ -1923,6 +1923,19 @@ volumes:
                   padding: '8px 12px',
                   cursor: 'pointer',
                   fontSize: '14px',
+                  borderBottom: '1px solid #f0f0f0',
+                }}
+                onClick={() => handleMenuItemClick('add-dns')}
+                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f5f5f5'}
+                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'white'}
+              >
+                🔍 添加DNS
+              </div>
+              <div
+                style={{
+                  padding: '8px 12px',
+                  cursor: 'pointer',
+                  fontSize: '14px',
                 }}
                 onClick={() => handleMenuItemClick('add-user')}
                 onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f5f5f5'}

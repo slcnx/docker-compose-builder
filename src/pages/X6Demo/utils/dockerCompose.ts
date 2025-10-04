@@ -170,6 +170,11 @@ export const containerConfigToService = (config: ContainerConfig) => {
     service.networks = networks
   }
 
+  // 添加DNS配置
+  if (config.dns && config.dns.length > 0) {
+    service.dns = config.dns
+  }
+
   // 添加重启策略
   if (config.restart) {
     service.restart = config.restart

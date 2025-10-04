@@ -145,6 +145,18 @@ export const useDockerCompose = (
         }
       })
 
+      // 读取DNS节点（只使用节点数据）
+      const dnsNodes = children.filter((child: any) => child.shape === 'docker-dns')
+      const dnsServers: string[] = []
+
+      dnsNodes.forEach((dnsNode: any) => {
+        const dnsData = dnsNode.getData()
+        const dnsAddress = dnsData?.dnsAddress
+        if (dnsAddress) {
+          dnsServers.push(dnsAddress)
+        }
+      })
+
       // 构建完整配置（只保留必要的 savedConfig 数据）
       const config: any = {
         containerName: serviceName,
@@ -154,6 +166,7 @@ export const useDockerCompose = (
         environment: environment.length > 0 ? environment : (savedConfig.environment || []), // 优先使用节点数据
         networkInterfaces: networkInterfaces,
         switchNetworks: savedConfig.switchNetworks || {}, // 交换机网络配置保留 savedConfig
+        dns: dnsServers.length > 0 ? dnsServers : undefined, // DNS配置
         entrypoint: entrypoint,
         entrypointIsArray: savedConfig.entrypointIsArray, // 原始格式标记
         command: command,
@@ -291,6 +304,16 @@ export const useDockerCompose = (
           }
         }
 
+        // 处理DNS配置
+        let dns: string[] = []
+        if (serviceConfig.dns) {
+          if (Array.isArray(serviceConfig.dns)) {
+            dns = serviceConfig.dns
+          } else if (typeof serviceConfig.dns === 'string') {
+            dns = [serviceConfig.dns]
+          }
+        }
+
         // 创建Docker容器节点
         const { containerNode } = dockerFactory.createDockerArchitecture({
           containerName: serviceName,
@@ -310,6 +333,7 @@ export const useDockerCompose = (
           environment: environment,
           ulimits: serviceConfig.ulimits,
           networkInterfaces: networkInterfaces,
+          dns: dns,
           position: { x, y }
         })
 
@@ -547,6 +571,23 @@ export const useDockerCompose = (
         })
 
         console.log('所有网络连接创建完成')
+
+        // 自动连接DNS节点到目标
+        Object.values(serviceNodes).forEach((containerNode: any) => {
+          const children = containerNode.getChildren() || []
+          const dnsNodes = children.filter((child: any) => child.shape === 'docker-dns')
+
+          dnsNodes.forEach((dnsNode: any) => {
+            const dnsData = dnsNode.getData()
+            if (dnsData?.needsConnection && dnsData?.dnsAddress) {
+              // 使用connectDNS方法自动连接
+              dockerFactory.connectDNS(dnsNode, dnsData.dnsAddress)
+              console.log(`自动连接DNS节点: ${dnsData.dnsAddress}`)
+            }
+          })
+        })
+
+        console.log('所有DNS连接创建完成')
 
         // 创建依赖关系连接
         // 用于记录每个节点的入端口和出端口（每个节点最多2个端口）

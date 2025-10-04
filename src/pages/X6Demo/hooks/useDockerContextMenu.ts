@@ -34,7 +34,7 @@ export const useDockerContextMenu = (
     let nodeType = ''
     if (node.shape === 'docker-container') {
       nodeType = 'container'
-    } else if (['docker-service', 'docker-image', 'docker-port', 'docker-volume', 'docker-network', 'docker-script', 'docker-user'].includes(node.shape)) {
+    } else if (['docker-service', 'docker-image', 'docker-port', 'docker-volume', 'docker-network', 'docker-script', 'docker-user', 'docker-dns'].includes(node.shape)) {
       nodeType = 'component'
     } else {
       nodeType = 'other'
@@ -129,6 +129,15 @@ export const useDockerContextMenu = (
             if (userNode) {
               node.addChild(userNode)
             }
+          }
+        }
+        break
+
+      case 'add-dns':
+        if (node.shape === 'docker-container') {
+          const dns = prompt('请输入DNS地址 (例如: 8.8.8.8, 10.0.0.13, 或容器名)', '8.8.8.8')
+          if (dns) {
+            dockerFactory.addDNSToContainer(node, dns)
           }
         }
         break

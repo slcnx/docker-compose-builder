@@ -33,6 +33,7 @@ export interface DockerServiceConfig {
     soft?: number
     hard?: number
   } | number>
+  dns?: string[]
   restart?: string
   depends_on?: string[] | Record<string, any>
 }
@@ -69,6 +70,7 @@ export interface ContainerConfig {
   } | number>
   networkInterfaces: NetworkInterface[]
   switchNetworks: Record<string, { subnet: string; gateway: string }>
+  dns?: string[]
   entrypoint: string
   entrypointIsArray?: boolean // 标记原始格式是否为数组
   command: string
